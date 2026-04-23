@@ -20,14 +20,14 @@
     Result area for the Haccgen extender result dialog. Media tags are output in-template from URLs
     so they are never stripped (no raw HTML in variables).
 
+    @copyright 2026, Dynamic Pixel
+    @license http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+
     Example context (json):
     {
         "isText": true,
         "textContent": "Example output text"
     }
-
-    @copyright 2026, Dynamic Pixel
-    @license http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
 }}
 {{#hasTimestamps}}
 <div class="dp-ai-result-timestamps">{{#generationTimeDisplay}}{{generationTimeDisplay}}{{/generationTimeDisplay}}{{#dialogTimeDisplay}}{{#generationTimeDisplay}} · {{/generationTimeDisplay}}{{dialogTimeDisplay}}{{/dialogTimeDisplay}}</div>

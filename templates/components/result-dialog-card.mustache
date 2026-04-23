@@ -33,7 +33,7 @@
 <div class="dp-ai-result-timestamps">{{#generationTimeDisplay}}{{generationTimeDisplay}}{{/generationTimeDisplay}}{{#dialogTimeDisplay}}{{#generationTimeDisplay}} · {{/generationTimeDisplay}}{{dialogTimeDisplay}}{{/dialogTimeDisplay}}</div>
 {{/hasTimestamps}}
 <div class="dp-ai-result-text dp-ai-result-card{{#wrapperClass}} {{wrapperClass}}{{/wrapperClass}}{{#isText}} dp-ai-result-text-scroll{{/isText}}" data-text="result">
-    <p class="dp-ai-result-body">
+    <div class="dp-ai-result-body">
     {{#audioIframeSrc}}
     <iframe class="dp-audio-iframe" title="Audio player" width="100%" height="80" src="{{{audioIframeSrc}}}"></iframe>
     {{/audioIframeSrc}}
@@ -73,7 +73,7 @@
     {{/isText}}
     {{/resultText}}
     {{/audioIframeSrc}}
-    </p>
+    </div>
     {{#errorMessage}}
     <div class="dp-ai-result-error">{{errorMessage}}</div>
     {{/errorMessage}}

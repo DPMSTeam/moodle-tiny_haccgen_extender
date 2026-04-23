@@ -43,13 +43,13 @@
     }
 }}
 <div class="dp-ai-img-wrap" id="dp-ai-img-wrap">
-    <div class="dp-ai-drop" id="dp-ai-drop" role="button" tabindex="0" aria-label="{{droparia}}">
+    <div class="dp-ai-drop" id="dp-ai-drop" tabindex="0" aria-label="{{droparia}}">
         <p class="dp-ai-drop__hint">{{drophint}}</p>
         <p class="dp-ai-drop__sub">{{dropsub}}</p>
-        {{#showchoosebutton}}
-        <button type="button" class="dp-ai-choose" id="dp-ai-choose">{{choosefile}}</button>
-        {{/showchoosebutton}}
     </div>
+    {{#showchoosebutton}}
+    <button type="button" class="dp-ai-choose" id="dp-ai-choose">{{choosefile}}</button>
+    {{/showchoosebutton}}
     <input class="dp-ai-file-input" id="dp-ai-file" type="file" accept="image/*">
 
     <div class="dp-ai-file-row dp-ai-hidden" id="dp-ai-file-row">

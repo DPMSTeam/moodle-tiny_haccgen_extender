@@ -52,6 +52,7 @@ export const openResultDialog = async (editor, resultText, opts = {}) => {
   const btnCopy = await getString('btn_copy', component);
   const errMediaPrepareInsert = await getString('err_media_prepare_insert', component);
   const errMediaPrepareReplace = await getString('err_media_prepare_replace', component);
+  const valueEmpty = await getString('value_empty', component);
   const hasSelection = Boolean(opts.hasSelection);
   const goBack = opts.goBack;
 
@@ -150,7 +151,7 @@ export const openResultDialog = async (editor, resultText, opts = {}) => {
     cardContext.imageSrc = previewSrc;
   } else if (isImageIntentNoImage) {
     cardContext.isImageIntentNoImage = true;
-    cardContext.imageErrorPreview = outputText ? escapeHtml(String(outputText).slice(0, 500)) : '(empty)';
+    cardContext.imageErrorPreview = outputText ? escapeHtml(String(outputText).slice(0, 500)) : valueEmpty;
   } else if (isVideo) {
     cardContext.isVideo = Boolean(playableUrl);
     cardContext.videoUrl = playableUrl || '';

@@ -22,11 +22,29 @@
  */
 
 import uploadToDraft from 'editor_tiny/uploader';
+import { get_string as getString } from 'core/str';
 import { localizeMediaToDraft } from '../../repository';
 import { resolveDraftItemId } from '../../draftItemid';
+import { component } from '../../common';
 import { dataUrlToBlob, extFromMime } from './utils';
 
-const DRAFT_UNAVAILABLE_MSG = 'Draft file area is not available in this editor. You can still insert the media below.';
+const DRAFT_UNAVAILABLE_FALLBACK = 'Draft file area is not available in this editor. You can still insert the media below.';
+const SERVER_COPY_MEDIA_LOCALLY_FAILED_FALLBACK = 'Server could not copy media locally.';
+const localizedMessageCache = {};
+
+async function getLocalizedMessage(key, fallback) {
+  if (localizedMessageCache[key]) {
+    return localizedMessageCache[key];
+  }
+  try {
+    const value = await getString(key, component);
+    localizedMessageCache[key] = String(value || fallback);
+    return localizedMessageCache[key];
+  } catch (_) {
+    localizedMessageCache[key] = fallback;
+    return fallback;
+  }
+}
 
 /**
  * Determine whether a media URL is persistable.
@@ -172,6 +190,10 @@ export const maybeUploadDataUrlToDraft = async (editor, dataUrl, defaultMime, ki
   const v = String(dataUrl || '').trim().replace(/&amp;/gi, '&');
   if (!v) {return { playableUrl: '', uploadError: '' };}
   const requireLocal = Boolean(opts.requireLocal);
+  const [draftUnavailableMsg, serverCopyMediaLocallyFailedMsg] = await Promise.all([
+    getLocalizedMessage('err_draft_file_area_unavailable', DRAFT_UNAVAILABLE_FALLBACK),
+    getLocalizedMessage('err_server_copy_media_locally_failed', SERVER_COPY_MEDIA_LOCALLY_FAILED_FALLBACK),
+  ]);
   let preferredItemId = resolveRequestedItemId(editor, opts);
 
   const uploadBlob = async (blob, mimeHint) => {
@@ -195,12 +217,12 @@ export const maybeUploadDataUrlToDraft = async (editor, dataUrl, defaultMime, ki
         }
         return { playableUrl: localizedUrl, uploadError: '' };
       }
-      const err = String((localized && localized.message) || 'Server could not copy media locally.');
+      const err = String((localized && localized.message) || serverCopyMediaLocallyFailedMsg);
       return { playableUrl: '', uploadError: err };
     } catch (e) {
       return {
         playableUrl: '',
-        uploadError: e?.message ? e.message : 'Server could not copy media locally.',
+        uploadError: e?.message ? e.message : serverCopyMediaLocallyFailedMsg,
       };
     }
   };
@@ -213,7 +235,7 @@ export const maybeUploadDataUrlToDraft = async (editor, dataUrl, defaultMime, ki
     }
     if (!hasDraftContext(editor)) {
       if (requireLocal) {
-        return { playableUrl: '', uploadError: localized.uploadError || DRAFT_UNAVAILABLE_MSG };
+        return { playableUrl: '', uploadError: localized.uploadError || draftUnavailableMsg };
       }
       return { playableUrl: v, uploadError: '' };
     }
@@ -249,7 +271,7 @@ export const maybeUploadDataUrlToDraft = async (editor, dataUrl, defaultMime, ki
     return localized;
   }
   if (!hasDraftContext(editor)) {
-    return { playableUrl: '', uploadError: localized.uploadError || DRAFT_UNAVAILABLE_MSG };
+    return { playableUrl: '', uploadError: localized.uploadError || draftUnavailableMsg };
   }
 
   try {
@@ -260,7 +282,7 @@ export const maybeUploadDataUrlToDraft = async (editor, dataUrl, defaultMime, ki
   } catch (e) {
     const rawErr = e?.message ? e.message : (typeof e === 'string' ? e : String(e));
     const err = (typeof rawErr === 'string' && (rawErr.includes("'itemid'") || rawErr.includes('itemid')))
-      ? DRAFT_UNAVAILABLE_MSG
+      ? draftUnavailableMsg
       : rawErr;
     return { playableUrl: '', uploadError: err };
   }

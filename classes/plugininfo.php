@@ -29,7 +29,6 @@ use editor_tiny\plugin_with_configuration;
  * @license http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class plugininfo extends plugin implements plugin_with_configuration {
-
     /**
      * Returns configuration consumed by the plugin JavaScript for this context.
      *

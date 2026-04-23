@@ -23,13 +23,20 @@
     * audiosrc - Audio source URL.
     * audiomime - Audio MIME type.
 
+    Example context (json):
+    {
+        "audiosrc": "https://example.com/audio.mp3",
+        "audiomime": "audio/mpeg"
+    }
+
     @copyright 2026, Dynamic Pixel
     @license http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
 }}
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <meta charset="utf-8">
+    <title>Audio preview</title>
     <style>
         body.dp-audio-doc-body {
             margin: 0;
@@ -42,6 +49,8 @@
     </style>
 </head>
 <body class="dp-audio-doc-body">
-    <audio class="dp-audio-doc-player" controls preload="metadata" src="{{audiosrc}}" type="{{audiomime}}"></audio>
+    <audio class="dp-audio-doc-player" controls preload="metadata">
+        <source src="{{audiosrc}}" type="{{audiomime}}">
+    </audio>
 </body>
 </html>

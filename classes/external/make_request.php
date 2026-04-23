@@ -32,7 +32,6 @@ use context_system;
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class make_request extends \external_api {
-
     /**
      * LMS base URL for Subscription Manager (must match local_subscription_clients.lms_url).
      * Uses $CFG->wwwroot when set; otherwise rebuilds from the current HTTP request (AJAX on this site).
@@ -48,8 +47,10 @@ class make_request extends \external_api {
         $scheme = 'http';
         if (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') {
             $scheme = 'https';
-        } else if (!empty($_SERVER['HTTP_X_FORWARDED_PROTO']) &&
-                stripos((string) $_SERVER['HTTP_X_FORWARDED_PROTO'], 'https') !== false) {
+        } else if (
+            !empty($_SERVER['HTTP_X_FORWARDED_PROTO']) &&
+            stripos((string) $_SERVER['HTTP_X_FORWARDED_PROTO'], 'https') !== false
+        ) {
             $scheme = 'https';
         }
         $host = trim((string) (

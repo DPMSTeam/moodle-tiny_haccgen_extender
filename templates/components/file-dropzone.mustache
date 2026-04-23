@@ -28,6 +28,17 @@
     * clearfile
     * showchoosebutton (boolean)
 
+    Example context (json):
+    {
+        "droparia": "Drop image here or choose file",
+        "drophint": "Drag & drop an image here",
+        "dropsub": "or click to choose a file (PNG, JPG, JPEG, WEBP)",
+        "choosefile": "Choose file",
+        "changefile": "Change",
+        "clearfile": "Clear",
+        "showchoosebutton": true
+    }
+
     @copyright 2026, Dynamic Pixel
     @license http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
 }}
@@ -38,8 +49,8 @@
         {{#showchoosebutton}}
         <button type="button" class="dp-ai-choose" id="dp-ai-choose">{{choosefile}}</button>
         {{/showchoosebutton}}
-        <input class="dp-ai-file-input" id="dp-ai-file" type="file" accept="image/*" />
     </div>
+    <input class="dp-ai-file-input" id="dp-ai-file" type="file" accept="image/*">
 
     <div class="dp-ai-file-row dp-ai-hidden" id="dp-ai-file-row">
         <div class="dp-ai-file-name" id="dp-ai-file-name"></div>

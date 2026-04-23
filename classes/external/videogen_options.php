@@ -33,7 +33,6 @@ use core\http_client;
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 final class videogen_options extends \external_api {
-
     /**
      * Describes the parameters for execute.
      *
@@ -139,7 +138,7 @@ final class videogen_options extends \external_api {
                 'aspect_ratios' => [
                     ['id' => '16:9', 'name' => '16:9 (Landscape)'],
                     ['id' => '9:16', 'name' => '9:16 (Portrait)'],
-                    ['id' => '1:1',  'name' => '1:1 (Square)'],
+                    ['id' => '1:1', 'name' => '1:1 (Square)'],
                 ],
                 'output_format' => [
                     ['id' => 'mp4', 'name' => 'MP4'],
@@ -151,7 +150,6 @@ final class videogen_options extends \external_api {
             $cache->set($cachekey, $opts);
 
             return ['code' => 200, 'result' => json_encode($opts)];
-
         } catch (\Throwable $e) {
             return ['code' => 500, 'result' => json_encode(['message' => $e->getMessage()])];
         }

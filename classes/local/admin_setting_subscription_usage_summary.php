@@ -32,7 +32,6 @@ require_once($CFG->libdir . '/adminlib.php');
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class admin_setting_subscription_usage_summary extends \admin_setting {
-
     /**
      * Constructor.
      */
@@ -83,13 +82,19 @@ class admin_setting_subscription_usage_summary extends \admin_setting {
         $issubscriptionmanager = stripos($endpoint, '/local/subscription_manager/') !== false
             && (stripos($endpoint, 'ai_endpoint.php') !== false || stripos($endpoint, 'subscription_usage_endpoint.php') !== false);
         if ($endpoint === '' || !$issubscriptionmanager) {
-            $html = \html_writer::tag('p', get_string('setting_subscription_usage_not_sm', 'tiny_haccgen_extender'),
-                ['class' => 'form-text text-muted']);
+            $html = \html_writer::tag(
+                'p',
+                get_string('setting_subscription_usage_not_sm', 'tiny_haccgen_extender'),
+                ['class' => 'form-text text-muted']
+            );
             return \format_admin_setting($this, $this->name, $html, $this->description, false, '', '', $query, $this->forceltr);
         }
         if ($subkey === '' || $subsec === '') {
-            $html = \html_writer::tag('p', get_string('setting_subscription_usage_no_creds', 'tiny_haccgen_extender'),
-                ['class' => 'form-text text-warning']);
+            $html = \html_writer::tag(
+                'p',
+                get_string('setting_subscription_usage_no_creds', 'tiny_haccgen_extender'),
+                ['class' => 'form-text text-warning']
+            );
             return \format_admin_setting($this, $this->name, $html, $this->description, false, '', '', $query, $this->forceltr);
         }
 
@@ -169,8 +174,11 @@ class admin_setting_subscription_usage_summary extends \admin_setting {
         $table->data = $rows;
 
         $html = \html_writer::table($table);
-        $html .= \html_writer::tag('p', get_string('setting_subscription_usage_note', 'tiny_haccgen_extender'),
-            ['class' => 'form-text text-muted mt-2']);
+        $html .= \html_writer::tag(
+            'p',
+            get_string('setting_subscription_usage_note', 'tiny_haccgen_extender'),
+            ['class' => 'form-text text-muted mt-2']
+        );
 
         return \format_admin_setting($this, $this->name, $html, $this->description, false, '', '', $query, $this->forceltr);
     }

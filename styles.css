@@ -25,7 +25,7 @@
 /* Keep result preview bounded so dialog action buttons stay visible. */
 .tox .dp-ai-result-text {
     width: 100%;
-    max-height: min(56vh, 460px);
+    max-height: 56vh;
     overflow: auto;
 }
 
@@ -60,8 +60,8 @@
 
 .tox .dp-ai-result-text img.mw-100,
 .tox .dp-ai-result-text video.mw-100 {
-    max-height: min(40vh, 340px) !important;
-    height: auto !important;
+    max-height: 40vh;
+    height: auto;
 }
 
 .tox .dp-ai-result-media {
@@ -145,7 +145,8 @@
 .tox .dp-ai-hero {
     border-radius: 14px;
     padding: 16px;
-    background: linear-gradient(
+    background:
+        linear-gradient(
         145deg,
         rgba(15, 108, 191, 0.12) 0%,
         rgba(15, 108, 191, 0.04) 50%,
@@ -327,13 +328,13 @@
 
 .tox .tox-dialog .tox-textarea,
 .tox .tox-dialog .tox-textfield {
-    border-radius: 10px !important;
+    border-radius: 10px;
 }
 
 .tox .tox-dialog .tox-textarea {
-    min-height: 260px !important;
-    font-size: 12.5px !important;
-    line-height: 1.45 !important;
+    min-height: 260px;
+    font-size: 12.5px;
+    line-height: 1.45;
 }
 
 /* Image/text recognition file picker */
@@ -439,7 +440,7 @@
 }
 
 .tox .dp-ai-hidden {
-    display: none !important;
+    display: none;
 }
 
 /* Inserted editor content media */

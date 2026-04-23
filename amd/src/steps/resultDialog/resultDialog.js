@@ -161,10 +161,11 @@ export const openResultDialog = async (editor, resultText, opts = {}) => {
     cardContext.beautifiedContent = textToHtml(outputText);
   }
   if (uploadError) {
-    const errMsg = typeof uploadError === 'string'
+    const errMsgRaw = typeof uploadError === 'string'
       ? uploadError
       : (uploadError && typeof uploadError.message === 'string' ? uploadError.message : '');
-    if (errMsg && errMsg !== '[object Object]') {
+    const errMsg = typeof errMsgRaw === 'string' ? errMsgRaw.trim() : '';
+    if (errMsg) {
       cardContext.errorMessage = errMsg;
     }
   }

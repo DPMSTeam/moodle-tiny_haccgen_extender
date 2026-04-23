@@ -32,6 +32,14 @@ const DRAFT_UNAVAILABLE_FALLBACK = 'Draft file area is not available in this edi
 const SERVER_COPY_MEDIA_LOCALLY_FAILED_FALLBACK = 'Server could not copy media locally.';
 const localizedMessageCache = {};
 
+/**
+ * Resolve a plugin language string and cache it per key.
+ * Falls back to the provided text when lookup fails.
+ *
+ * @param {string} key
+ * @param {string} fallback
+ * @returns {Promise<string>}
+ */
 async function getLocalizedMessage(key, fallback) {
   if (localizedMessageCache[key]) {
     return localizedMessageCache[key];

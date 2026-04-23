@@ -1,3 +1,26 @@
+// This file is part of Moodle - http://moodle.org/
+//
+// Moodle is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Moodle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
+
+/**
+ * Result dialog flow and actions.
+ *
+ * @module tiny_haccgen_extender/steps/resultDialog/resultDialog
+ * @copyright 2026, Dynamic Pixel
+ * @license http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
+
 import { get_string as getString } from 'core/str';
 import { alert as moodleAlert } from 'core/notification';
 import Log from 'core/log';
@@ -17,24 +40,18 @@ import {
   replaceWithVideoHtml,
 } from './editorInsert';
 
-// Result area styling (passed to Mustache template)
-const RESULT_WRAPPER_STYLE = `display:flex;padding:14px;flex-direction:column;
-align-items:flex-start;gap:6px;align-self:stretch;border-radius:12px;
-border:1px solid rgba(15,108,191,.12);background:#FFF;
-box-shadow:0 2px 12px rgba(15,108,191,.06);`;
-const RESULT_P_STYLE = 'margin:0;';
-const RESULT_IMG_STYLE = [
-  'width:100%;max-width:100%;max-height:50vh;height:auto;',
-  'display:block;border-radius:8px;object-fit:contain;background:#000;',
-].join('');
-const RESULT_TEXT_EXTRA_STYLE = 'max-height:52vh;overflow:auto;';
-
 export const openResultDialog = async (editor, resultText, opts = {}) => {
   Log.debug('[tiny_haccgen_extender:result_dialog] openResultDialog called hasSelection=' +
     Boolean(opts.hasSelection) + ' hasGoBack=' + (typeof opts.goBack === 'function'));
 
   const title = await getString('modal_title', component);
   const resultDialogTitle = await getString('result_dialog_title', component);
+  const btnClose = await getString('btn_close', component);
+  const btnInsertBelow = await getString('btn_insert_below', component);
+  const btnReplaceSelection = await getString('btn_replace_selection', component);
+  const btnCopy = await getString('btn_copy', component);
+  const errMediaPrepareInsert = await getString('err_media_prepare_insert', component);
+  const errMediaPrepareReplace = await getString('err_media_prepare_replace', component);
   const hasSelection = Boolean(opts.hasSelection);
   const goBack = opts.goBack;
 
@@ -108,11 +125,7 @@ export const openResultDialog = async (editor, resultText, opts = {}) => {
   const previewSrc = playableUrl || (isAudio ? audioSrc : isImage ? imageSrc : '');
 
   // Template context: pass type flags and primitive data so <audio>/<img>/<video> are in the template (not raw HTML).
-  const cardContext = {
-    wrapperStyle: RESULT_WRAPPER_STYLE,
-    pStyle: RESULT_P_STYLE,
-    imgStyle: RESULT_IMG_STYLE,
-  };
+  const cardContext = {};
   if (isAudio) {
     cardContext.isAudio = true;
     cardContext.wrapperClass = 'dp-ai-result-audio';
@@ -135,34 +148,16 @@ export const openResultDialog = async (editor, resultText, opts = {}) => {
   } else if (isImage) {
     cardContext.isImage = true;
     cardContext.imageSrc = previewSrc;
-    if (previewSrc) {
-      const imageEl = document.createElement('img');
-      imageEl.src = previewSrc;
-      imageEl.classList.add('mw-100');
-      imageEl.style.cssText = RESULT_IMG_STYLE;
-      imageEl.alt = 'Generated image';
-      cardContext.resultText = imageEl.outerHTML;
-    }
   } else if (isImageIntentNoImage) {
     cardContext.isImageIntentNoImage = true;
     cardContext.imageErrorPreview = outputText ? escapeHtml(String(outputText).slice(0, 500)) : '(empty)';
   } else if (isVideo) {
     cardContext.isVideo = Boolean(playableUrl);
     cardContext.videoUrl = playableUrl || '';
-    if (playableUrl) {
-      const videoEl = document.createElement('video');
-      videoEl.controls = true;
-      videoEl.preload = 'metadata';
-      videoEl.classList.add('mw-100');
-      videoEl.style.cssText = RESULT_IMG_STYLE;
-      videoEl.src = playableUrl;
-      cardContext.resultText = videoEl.outerHTML;
-    }
   } else {
     cardContext.isText = true;
     cardContext.textContent = safeText;
     cardContext.beautifiedContent = textToHtml(outputText);
-    cardContext.wrapperExtraStyle = RESULT_TEXT_EXTRA_STYLE;
   }
   if (uploadError) {
     const errMsg = typeof uploadError === 'string'
@@ -190,17 +185,17 @@ export const openResultDialog = async (editor, resultText, opts = {}) => {
   const canInsertMedia = isAudio || isImage || (isVideo && Boolean(playableUrl));
   const buttons = isMediaResult
     ? [
-        { type: 'cancel', text: 'Close' },
-        ...(canInsertMedia ? [{ type: 'custom', name: 'insertBelowMedia', text: 'Insert below' }] : []),
+        { type: 'cancel', text: btnClose },
+        ...(canInsertMedia ? [{ type: 'custom', name: 'insertBelowMedia', text: btnInsertBelow }] : []),
         ...(hasSelection && canInsertMedia
-          ? [{ type: 'custom', name: 'replaceSelectionMedia', text: 'Replace selection', primary: true }]
+          ? [{ type: 'custom', name: 'replaceSelectionMedia', text: btnReplaceSelection, primary: true }]
           : []),
       ]
     : [
-        { type: 'cancel', text: 'Close' },
-        { type: 'custom', name: 'copy', text: 'Copy' },
-        { type: 'custom', name: 'insertBelow', text: 'Insert below' },
-        ...(hasSelection ? [{ type: 'submit', text: 'Replace selection', primary: true }] : []),
+        { type: 'cancel', text: btnClose },
+        { type: 'custom', name: 'copy', text: btnCopy },
+        { type: 'custom', name: 'insertBelow', text: btnInsertBelow },
+        ...(hasSelection ? [{ type: 'submit', text: btnReplaceSelection, primary: true }] : []),
       ];
 
   Log.debug('[tiny_haccgen_extender:result_dialog] body mode media=' +
@@ -268,7 +263,7 @@ export const openResultDialog = async (editor, resultText, opts = {}) => {
           Log.debug('[tiny_haccgen_extender:result_dialog] insertBelowMedia hasUrl=' + !!urlToInsert +
             ' isAudio=' + isAudio + ' isImage=' + isImage + ' isVideo=' + isVideo);
           if (!urlToInsert) {
-            await moodleAlert(title, 'Media file could not be prepared. Cannot insert.');
+            await moodleAlert(title, errMediaPrepareInsert);
             return;
           }
           if (isAudio) { insertAudioHtml(editor, urlToInsert, audioMime); }
@@ -295,7 +290,7 @@ export const openResultDialog = async (editor, resultText, opts = {}) => {
           }
           Log.debug('[tiny_haccgen_extender:result_dialog] replaceSelectionMedia hasUrl=' + !!urlToReplace);
           if (!urlToReplace) {
-            await moodleAlert(title, 'Media file could not be prepared. Cannot replace selection.');
+            await moodleAlert(title, errMediaPrepareReplace);
             return;
           }
           if (isAudio) { replaceWithAudioHtml(editor, urlToReplace, audioMime); }

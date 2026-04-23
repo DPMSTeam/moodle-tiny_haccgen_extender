@@ -30,8 +30,18 @@
 <html>
 <head>
     <meta charset="utf-8">
+    <style>
+        body.dp-audio-doc-body {
+            margin: 0;
+            padding: 0;
+        }
+        audio.dp-audio-doc-player {
+            width: 100%;
+            max-width: 400px;
+        }
+    </style>
 </head>
-<body style="margin:0;padding:0;">
-    <audio controls preload="metadata" src="{{audiosrc}}" type="{{audiomime}}" style="width:100%;max-width:400px;"></audio>
+<body class="dp-audio-doc-body">
+    <audio class="dp-audio-doc-player" controls preload="metadata" src="{{audiosrc}}" type="{{audiomime}}"></audio>
 </body>
 </html>

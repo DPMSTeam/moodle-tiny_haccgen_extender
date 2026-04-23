@@ -1,6 +1,30 @@
+// This file is part of Moodle - http://moodle.org/
+//
+// Moodle is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Moodle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
+
+/**
+ * Infographic-image dialog config.
+ *
+ * @module tiny_haccgen_extender/steps/infographImageTemplate
+ * @copyright 2026, Dynamic Pixel
+ * @license http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
+
 // steps/infographImageGenerationTemplate.js
 import { get_string as getString } from 'core/str';
 import { alert as moodleAlert } from 'core/notification';
+import Templates from 'core/templates';
 import { makeRequest } from '../repository';
 import { component } from '../common';
 import { showLoadingOverlay } from '../loadingOverlay';
@@ -22,7 +46,28 @@ export const buildInfographImageGenerationTemplateConfig = async ({
   const title = await getString('modal_title', component);
   const btnRun = await getString('btn_run', component);
   const btnCancel = await getString('btn_cancel', component);
+  const btnBack = await getString('btn_back', component);
   const generatingMsg = await getString('generating', component);
+  const purposeInfographLabel = await getString('purpose_infograph_image_generation_label', component);
+  const purposeInfographDesc = await getString('purpose_infograph_image_generation_desc', component);
+  const fieldSize = await getString('field_size', component);
+  const fieldDensity = await getString('field_density', component);
+  const optionMedium = await getString('option_medium', component);
+  const optionHigh = await getString('option_high', component);
+  const fieldPrompt = await getString('field_prompt', component);
+  const placeholderInfographPrompt = await getString('placeholder_infograph_prompt', component);
+  const errPromptRequired = await getString('err_prompt_required', component);
+  const headerRender = await Templates.renderForPromise(
+    'tiny_haccgen_extender/components/dialog-head',
+    {
+      title: purposeInfographLabel,
+      subtitle: purposeInfographDesc,
+    }
+  );
+  if (headerRender.js) {
+    Templates.runTemplateJS(headerRender.js);
+  }
+  const headerHtml = headerRender.html;
 
   // Your requested sizes
   const sizeItems = [
@@ -34,7 +79,7 @@ export const buildInfographImageGenerationTemplateConfig = async ({
   ];
 
   return {
-    title: `${title}: Infographic image generation`,
+    title: `${title}: ${purposeInfographLabel}`,
     size: 'medium',
 
     body: {
@@ -43,42 +88,20 @@ export const buildInfographImageGenerationTemplateConfig = async ({
         {
           type: 'htmlpanel',
           name: 'infographHead',
-          html: `
-            <style>
-              .dp-ai-x-head{
-                background: linear-gradient(135deg, rgba(15,108,191,.10), rgba(15,108,191,.03));
-                border:1px solid rgba(15,108,191,.18);
-                border-radius:12px;
-                padding:12px 12px;
-                margin-bottom:10px;
-                box-shadow: 0 8px 22px rgba(15,108,191,.10);
-              }
-              .dp-ai-x-head__t{ font-weight:800; margin:0 0 4px; color:#102a43; font-size:14px; }
-              .dp-ai-x-head__s{ margin:0; font-size:12.5px; line-height:1.4; color:rgba(16,42,67,.78); }
-
-              .tox .tox-textarea, .tox .tox-textfield{ border-radius: 10px !important; }
-              .tox .tox-textarea{ min-height: 300px !important; font-size: 12.5px !important; line-height: 1.45 !important; }
-            </style>
-
-            <div class="dp-ai-x-head">
-              <p class="dp-ai-x-head__t">Create an infographic image</p>
-              <p class="dp-ai-x-head__s">Describe the infographic content
-               (title, sections, stats, style). Choose size, then generate.</p>
-            </div>
-          `,
+          html: headerHtml,
         },
 
         {
           type: 'bar',
           items: [
-            { type: 'button', name: 'back', text: 'Back', buttonType: 'secondary' },
+            { type: 'button', name: 'back', text: btnBack, buttonType: 'secondary' },
           ],
         },
 
         {
           type: 'selectbox',
           name: 'size',
-          label: 'Size',
+          label: fieldSize,
           items: sizeItems,
         },
 
@@ -86,19 +109,17 @@ export const buildInfographImageGenerationTemplateConfig = async ({
         {
           type: 'selectbox',
           name: 'density',
-          label: 'Density',
+          label: fieldDensity,
           items: [
-            { value: 'medium', text: 'Medium' },
-            { value: 'high', text: 'High' },
+            { value: 'medium', text: optionMedium },
+            { value: 'high', text: optionHigh },
           ],
         },
         {
             type: 'textarea',
             name: 'prompt',
-            label: 'Prompt',
-            placeholder:
-              'Example: Create a clean infographic titled "Agile Project Overview" with 4 sections: ' +
-              'Principles, Roles, Events, Artifacts. Use blue/white theme.',
+            label: fieldPrompt,
+            placeholder: placeholderInfographPrompt,
           },
       ],
     },
@@ -127,7 +148,7 @@ export const buildInfographImageGenerationTemplateConfig = async ({
       const inputText = (data.prompt || '').trim();
 
       if (!inputText) {
-        await moodleAlert(title, 'Please enter a prompt for the infographic image.');
+        await moodleAlert(title, errPromptRequired);
         return;
       }
 

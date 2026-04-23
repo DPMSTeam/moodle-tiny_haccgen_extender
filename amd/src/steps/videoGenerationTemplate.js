@@ -1,5 +1,29 @@
+// This file is part of Moodle - http://moodle.org/
+//
+// Moodle is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Moodle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
+
+/**
+ * Video-generation dialog config.
+ *
+ * @module tiny_haccgen_extender/steps/videoGenerationTemplate
+ * @copyright 2026, Dynamic Pixel
+ * @license http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
+
 import { get_string as getString } from 'core/str';
 import { alert as moodleAlert } from 'core/notification';
+import Templates from 'core/templates';
 import { component } from '../common';
 import { makeRequest } from '../repository';
 import { showLoadingOverlay } from '../loadingOverlay';
@@ -81,6 +105,17 @@ export const buildVideoGenerationTemplateConfig = async ({ editor, selectionText
   const valueNo = await getString('no', component);
   const errVideoOptionsLoadFailed = await getString('err_video_options_load_failed', component);
   const errPromptRequired = await getString('err_prompt_required', component);
+  const headerRender = await Templates.renderForPromise(
+    'tiny_haccgen_extender/components/dialog-head',
+    {
+      title: videoGenerationTitle,
+      subtitle: videoGenerationSubtitle,
+    }
+  );
+  if (headerRender.js) {
+    Templates.runTemplateJS(headerRender.js);
+  }
+  const headerHtml = headerRender.html;
 
   // Load options from aigen_subscribe (same flow as HeyGen avatar options).
   let opts = readOptCache();
@@ -133,27 +168,7 @@ export const buildVideoGenerationTemplateConfig = async ({ editor, selectionText
         {
           type: 'htmlpanel',
           name: 'videoHead',
-          html: `
-            <style>
-              .dp-ai-x-head{
-                background: linear-gradient(135deg, rgba(15,108,191,.10), rgba(15,108,191,.03));
-                border:1px solid rgba(15,108,191,.18);
-                border-radius:12px;
-                padding:12px 12px;
-                margin-bottom:10px;
-                box-shadow: 0 8px 22px rgba(15,108,191,.10);
-              }
-              .dp-ai-x-head__t{ font-weight:800; margin:0 0 4px; color:#102a43; font-size:14px; }
-              .dp-ai-x-head__s{ margin:0; font-size:12.5px; line-height:1.4; color:rgba(16,42,67,.78); }
-              .tox .tox-textarea, .tox .tox-textfield{ border-radius:10px !important; }
-              .tox .tox-textarea{ min-height: 260px !important; font-size:12.5px !important; line-height:1.45 !important; }
-            </style>
-
-            <div class="dp-ai-x-head">
-              <p class="dp-ai-x-head__t">${videoGenerationTitle}</p>
-              <p class="dp-ai-x-head__s">${videoGenerationSubtitle}</p>
-            </div>
-          `,
+          html: headerHtml,
         },
 
         {

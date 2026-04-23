@@ -1,5 +1,29 @@
+// This file is part of Moodle - http://moodle.org/
+//
+// Moodle is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Moodle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
+
+/**
+ * Image-generation dialog config.
+ *
+ * @module tiny_haccgen_extender/steps/imageGenerationTemplate
+ * @copyright 2026, Dynamic Pixel
+ * @license http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
+
 import { get_string as getString } from 'core/str';
 import { alert as moodleAlert } from 'core/notification';
+import Templates from 'core/templates';
 import { makeRequest } from '../repository';
 import { component } from '../common';
 import { showLoadingOverlay } from '../loadingOverlay';
@@ -21,10 +45,28 @@ export const buildImageGenerationTemplateConfig = async ({
   const title = await getString('modal_title', component);
   const btnRun = await getString('btn_run', component);
   const btnCancel = await getString('btn_cancel', component);
+  const btnBack = await getString('btn_back', component);
   const generatingMsg = await getString('generating', component);
+  const purposeImageGenerationLabel = await getString('purpose_image_generation_label', component);
+  const purposeImageGenerationDesc = await getString('purpose_image_generation_desc', component);
+  const fieldPrompt = await getString('field_prompt', component);
+  const fieldSize = await getString('field_size', component);
+  const placeholderImageGenerationPrompt = await getString('placeholder_image_generation_prompt', component);
+  const errPromptRequired = await getString('err_prompt_required', component);
+  const headerRender = await Templates.renderForPromise(
+    'tiny_haccgen_extender/components/dialog-head',
+    {
+      title: purposeImageGenerationLabel,
+      subtitle: purposeImageGenerationDesc,
+    }
+  );
+  if (headerRender.js) {
+    Templates.runTemplateJS(headerRender.js);
+  }
+  const headerHtml = headerRender.html;
 
   return {
-    title: `${title}: Image generation`,
+    title: `${title}: ${purposeImageGenerationLabel}`,
     size: 'medium',
 
     body: {
@@ -32,46 +74,27 @@ export const buildImageGenerationTemplateConfig = async ({
       items: [
         {
           type: 'htmlpanel',
-          html: `
-            <style>
-              .dp-ai-x-head{
-                background: linear-gradient(135deg, rgba(15,108,191,.10), rgba(15,108,191,.03));
-                border:1px solid rgba(15,108,191,.18);
-                border-radius:12px;
-                padding:12px;
-                margin-bottom:10px;
-                box-shadow:0 8px 22px rgba(15,108,191,.10);
-              }
-              .dp-ai-x-head__t{font-weight:800;margin:0 0 4px;color:#102a43;font-size:14px}
-              .dp-ai-x-head__s{margin:0;font-size:12.5px;color:rgba(16,42,67,.78)}
-              .tox .tox-textarea{min-height:260px !important;border-radius:10px !important;}
-            </style>
-
-            <div class="dp-ai-x-head">
-              <p class="dp-ai-x-head__t">Image generation</p>
-              <p class="dp-ai-x-head__s">Describe the image and choose an output size.</p>
-            </div>
-          `,
+          html: headerHtml,
         },
 
         {
           type: 'bar',
           items: [
-            { type: 'button', name: 'back', text: 'Back', buttonType: 'secondary' },
+            { type: 'button', name: 'back', text: btnBack, buttonType: 'secondary' },
           ],
         },
 
         {
           type: 'textarea',
           name: 'prompt',
-          label: 'Prompt',
-          placeholder: 'Describe the image you want to generate…',
+          label: fieldPrompt,
+          placeholder: placeholderImageGenerationPrompt,
         },
 
         {
           type: 'selectbox',
           name: 'size',
-          label: 'Size',
+          label: fieldSize,
           items: [
             { value: '1:1_1024x1024', text: '1:1 (1024 x 1024)' },
             { value: '4:3_896x1280', text: '4:3 (896 x 1280)' },
@@ -106,7 +129,7 @@ export const buildImageGenerationTemplateConfig = async ({
       const inputText = (data.prompt || '').trim();
 
       if (!inputText) {
-        await moodleAlert(title, 'Please enter an image description.');
+        await moodleAlert(title, errPromptRequired);
         return;
       }
 

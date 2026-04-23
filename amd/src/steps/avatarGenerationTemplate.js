@@ -1,5 +1,29 @@
+// This file is part of Moodle - http://moodle.org/
+//
+// Moodle is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Moodle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
+
+/**
+ * Avatar generation dialog config.
+ *
+ * @module tiny_haccgen_extender/steps/avatarGenerationTemplate
+ * @copyright 2026, Dynamic Pixel
+ * @license http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
+
 import { get_string as getString } from 'core/str';
 import { alert as moodleAlert } from 'core/notification';
+import Templates from 'core/templates';
 import { component } from '../common';
 import { makeRequest } from '../repository';
 import { showLoadingOverlay } from '../loadingOverlay';
@@ -67,7 +91,30 @@ export const buildAvatarGenerationTemplateConfig = async ({ editor, selectionTex
   const title = await getString('modal_title', component);
   const btnRun = await getString('btn_run', component);
   const btnCancel = await getString('btn_cancel', component);
+  const btnBack = await getString('btn_back', component);
   const generatingMsg = await getString('generating', component);
+  const purposeAvatarLabel = await getString('purpose_avatar_generation_label', component);
+  const purposeAvatarDesc = await getString('purpose_avatar_generation_desc', component);
+  const fieldScript = await getString('field_script', component);
+  const fieldAvatarId = await getString('field_avatar_id', component);
+  const fieldVoice = await getString('field_voice', component);
+  const fieldVideoStyleId = await getString('field_video_style_id', component);
+  const fieldOutputFormat = await getString('field_output_format', component);
+  const fieldResolution = await getString('field_resolution', component);
+  const placeholderAvatarScript = await getString('placeholder_avatar_script', component);
+  const errAvatarOptionsLoadFailed = await getString('err_avatar_options_load_failed', component);
+  const errScriptRequired = await getString('err_script_required', component);
+  const headerRender = await Templates.renderForPromise(
+    'tiny_haccgen_extender/components/dialog-head',
+    {
+      title: purposeAvatarLabel,
+      subtitle: purposeAvatarDesc,
+    }
+  );
+  if (headerRender.js) {
+    Templates.runTemplateJS(headerRender.js);
+  }
+  const headerHtml = headerRender.html;
 
   // 1) Load available options from backend (avatar_id, voice_id, video_style_id, output_format).
   let opts = readOptCache();
@@ -76,7 +123,7 @@ export const buildAvatarGenerationTemplateConfig = async ({ editor, selectionTex
     const resp = await makeRequest('avatar_generation_options', '', '{}');
 
     if (resp?.code !== 200) {
-      let msg = 'Failed to load avatar options.';
+      let msg = errAvatarOptionsLoadFailed;
       if (typeof resp?.result === 'string') {
         msg = resp.result;
       } else if (resp?.result) {
@@ -113,7 +160,7 @@ export const buildAvatarGenerationTemplateConfig = async ({ editor, selectionTex
   const defaultResolution = resolutionItems[0]?.value || '1280x720';
 
   return {
-    title: `${title}: Generate talking avatar`,
+    title: `${title}: ${purposeAvatarLabel}`,
     size: 'medium',
 
     body: {
@@ -122,46 +169,30 @@ export const buildAvatarGenerationTemplateConfig = async ({ editor, selectionTex
         {
           type: 'htmlpanel',
           name: 'avatarHead',
-          html: [
-            '<style>',
-            '.dp-ai-x-head{background: linear-gradient(135deg, rgba(15,108,191,.10), rgba(15,108,191,.03));',
-            'border:1px solid rgba(15,108,191,.18);border-radius:12px;padding:12px 12px;margin-bottom:10px;',
-            'box-shadow: 0 8px 22px rgba(15,108,191,.10);}',
-            '.dp-ai-x-head__t{ font-weight:800; margin:0 0 4px; color:#102a43; font-size:14px; }',
-            '.dp-ai-x-head__s{ margin:0; font-size:12.5px; line-height:1.4; color:rgba(16,42,67,.78); }',
-            '.tox .tox-textarea, .tox .tox-textfield{ border-radius:10px !important; }',
-            '.tox .tox-textarea{ min-height: 260px !important; font-size:12.5px !important; line-height:1.45 !important; }',
-            '</style>',
-            '<div class="dp-ai-x-head">',
-            '<p class="dp-ai-x-head__t">Generate talking avatar</p>',
-            '<p class="dp-ai-x-head__s">Enter text, select avatar/voice/style/format, then generate.</p>',
-            '</div>'
-          ].join('\n            '),
+          html: headerHtml,
         },
 
         {
           type: 'bar',
-          items: [{ type: 'button', name: 'back', text: 'Back', buttonType: 'secondary' }],
+          items: [{ type: 'button', name: 'back', text: btnBack, buttonType: 'secondary' }],
         },
 
         {
           type: 'textarea',
           name: 'prompt',
-          label: 'Script',
-          placeholder:
-            'Example: Welcome! In this lesson we will cover Agile basics. ' +
-            'We will start with Scrum roles, then events, then artifacts.',
+          label: fieldScript,
+          placeholder: placeholderAvatarScript,
         },
 
         {
           type: 'grid',
           columns: 2,
           items: [
-            { type: 'selectbox', name: 'avatar_id', label: 'Avatar Id', items: avatarItems },
-            { type: 'selectbox', name: 'voice_id', label: 'Voice Id', items: voiceItems },
-            { type: 'selectbox', name: 'video_style_id', label: 'Video Style Id', items: styleItems },
-            { type: 'selectbox', name: 'output_format', label: 'Output Format', items: formatItems },
-            { type: 'selectbox', name: 'resolution', label: 'Resolution', items: resolutionItems },
+            { type: 'selectbox', name: 'avatar_id', label: fieldAvatarId, items: avatarItems },
+            { type: 'selectbox', name: 'voice_id', label: fieldVoice, items: voiceItems },
+            { type: 'selectbox', name: 'video_style_id', label: fieldVideoStyleId, items: styleItems },
+            { type: 'selectbox', name: 'output_format', label: fieldOutputFormat, items: formatItems },
+            { type: 'selectbox', name: 'resolution', label: fieldResolution, items: resolutionItems },
           ],
         },
       ],
@@ -194,7 +225,7 @@ export const buildAvatarGenerationTemplateConfig = async ({ editor, selectionTex
       const inputText = (data.prompt || '').trim();
 
       if (!inputText) {
-        await moodleAlert(title, 'Please enter text in the Script box.');
+        await moodleAlert(title, errScriptRequired);
         return;
       }
 

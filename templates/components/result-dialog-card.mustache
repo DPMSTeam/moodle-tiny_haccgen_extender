@@ -26,8 +26,8 @@
 {{#hasTimestamps}}
 <div class="dp-ai-result-timestamps">{{#generationTimeDisplay}}{{generationTimeDisplay}}{{/generationTimeDisplay}}{{#dialogTimeDisplay}}{{#generationTimeDisplay}} · {{/generationTimeDisplay}}{{dialogTimeDisplay}}{{/dialogTimeDisplay}}</div>
 {{/hasTimestamps}}
-<div class="dp-ai-result-text{{#wrapperClass}} {{wrapperClass}}{{/wrapperClass}}" style="{{wrapperStyle}}{{#wrapperExtraStyle}} {{wrapperExtraStyle}}{{/wrapperExtraStyle}}" data-text="result">
-    <p style="{{pStyle}}">
+<div class="dp-ai-result-text dp-ai-result-card{{#wrapperClass}} {{wrapperClass}}{{/wrapperClass}}{{#isText}} dp-ai-result-text-scroll{{/isText}}" data-text="result">
+    <p class="dp-ai-result-body">
     {{#audioIframeSrc}}
     <iframe class="dp-audio-iframe" title="Audio player" width="100%" height="80" src="{{{audioIframeSrc}}}"></iframe>
     {{/audioIframeSrc}}
@@ -47,10 +47,10 @@
     {{/audioHtml}}
     {{/isAudio}}
     {{#isImage}}
-    <img src="{{imageSrc}}" class="mw-100" style="{{imgStyle}}" alt="Generated image" />
+    <img src="{{imageSrc}}" class="mw-100 dp-ai-result-media" alt="Generated image" />
     {{/isImage}}
     {{#isVideo}}
-    <video controls preload="metadata" class="mw-100" style="{{imgStyle}}" src="{{videoUrl}}">Your browser does not support video.</video>
+    <video controls preload="metadata" class="mw-100 dp-ai-result-media" src="{{videoUrl}}">Your browser does not support video.</video>
     {{/isVideo}}
     {{#isImageIntentNoImage}}
     No image could be extracted from the response. The service may return a different format.

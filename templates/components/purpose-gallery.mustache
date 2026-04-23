@@ -1,0 +1,64 @@
+{{!
+    This file is part of Moodle - http://moodle.org/
+
+    Moodle is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Moodle is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
+}}
+{{!
+    @template tiny_haccgen_extender/components/purpose-gallery
+
+    Purpose selection gallery for step 1 modal.
+
+    Context variables required for this template:
+    * toolslabel
+    * selectpurposehelp
+    * cards[] with key, label, description, iconsvg
+
+    @copyright 2026, Dynamic Pixel
+    @license http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+}}
+<div class="dp-ai-wrap">
+    <div class="dp-ai-hero">
+        <div class="dp-ai-title">
+            <span class="dp-ai-title-icon">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" aria-hidden="true">
+                    <path d="M12 2l2.2 5.2L20 9l-4 3.6L17.2 18 12 15l-5.2 3 1.2-5.4L4 9l5.8-1.8L12 2z"
+                        stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                </svg>
+            </span>
+            {{toolslabel}}
+        </div>
+        <p class="dp-ai-sub">{{selectpurposehelp}}</p>
+    </div>
+
+    <div class="dp-ai-grid" role="list">
+        {{#cards}}
+        <button type="button" class="dp-ai-menuItem" data-purpose="{{key}}">
+            <span class="dp-ai-icon" aria-hidden="true">
+                {{{iconsvg}}}
+            </span>
+
+            <span class="dp-ai-menuItem__body">
+                <span class="dp-ai-menuItem__title">{{label}}</span>
+                <span class="dp-ai-menuItem__desc">{{description}}</span>
+            </span>
+
+            <span class="dp-ai-chevron" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none">
+                    <path d="M10 7l5 5-5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </span>
+        </button>
+        {{/cards}}
+    </div>
+</div>

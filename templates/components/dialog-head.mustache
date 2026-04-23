@@ -15,13 +15,18 @@
     along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 }}
 {{!
-    @template tiny_haccgen_extender/components/result-dialog-note
+    @template tiny_haccgen_extender/components/dialog-head
 
-    Footer note for the Haccgen extender result dialog.
+    Reusable title/subtitle header block for Tiny dialog steps.
+
+    Context variables required for this template:
+    * title - Header title text.
+    * subtitle - Header subtitle text.
 
     @copyright 2026, Dynamic Pixel
     @license http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
 }}
-<div class="dp-ai-result-note">
-    Generated content should always be validated.
+<div class="dp-ai-x-head">
+    <p class="dp-ai-x-head__t">{{title}}</p>
+    <p class="dp-ai-x-head__s">{{subtitle}}</p>
 </div>

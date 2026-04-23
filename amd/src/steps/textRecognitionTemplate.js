@@ -1,6 +1,30 @@
+// This file is part of Moodle - http://moodle.org/
+//
+// Moodle is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Moodle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
+
+/**
+ * Text-recognition dialog config.
+ *
+ * @module tiny_haccgen_extender/steps/textRecognitionTemplate
+ * @copyright 2026, Dynamic Pixel
+ * @license http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
+
 import { get_string as getString } from 'core/str';
 import { alert as moodleAlert } from 'core/notification';
 import Log from 'core/log';
+import Templates from 'core/templates';
 import { makeRequest } from '../repository';
 import { component } from '../common';
 import { showLoadingOverlay } from '../loadingOverlay';
@@ -51,6 +75,27 @@ export const buildTextRecognitionTemplateConfig = async ({ editor, selectionText
   const errPromptRequiredOrKeep = await getString('err_prompt_required_or_keep', component);
   const errFailedReadImageData = await getString('err_failed_read_image_data', component);
   const errFailedReadFile = await getString('err_failed_read_file', component);
+  const fileDropRender = await Templates.renderForPromise(
+    'tiny_haccgen_extender/components/file-dropzone',
+    {
+      droparia: textRecognitionDropAria,
+      drophint: textRecognitionDropHint,
+      dropsub: textRecognitionDropSub,
+      choosefile: textRecognitionBtnChange,
+      changefile: textRecognitionBtnChange,
+      clearfile: textRecognitionBtnClear,
+      showchoosebutton: true,
+    }
+  );
+  const toolbarNoteRender = await Templates.renderForPromise(
+    'tiny_haccgen_extender/components/toolbar-note',
+    {}
+  );
+  [fileDropRender, toolbarNoteRender].forEach((item) => {
+    if (item.js) {
+      Templates.runTemplateJS(item.js);
+    }
+  });
 
   // Keep file in closure. (Not in dialog data; TinyMCE data is JSON.)
   let selectedFile = null;
@@ -73,111 +118,7 @@ export const buildTextRecognitionTemplateConfig = async ({ editor, selectionText
         {
           type: 'htmlpanel',
           name: 'imgDrop',
-          html: `
-            <style>
-              .dp-ai-img-wrap{
-                display:flex;
-                flex-direction:column;
-                gap:10px;
-                margin-top: 2px;
-              }
-
-              .dp-ai-drop{
-                border: 2px dashed rgba(15,108,191,.28);
-                background: rgba(15,108,191,.045);
-                border-radius: 12px;
-                padding: 22px 16px;
-                min-height: 140px;
-                display:flex;
-                flex-direction:column;
-                align-items:center;
-                justify-content:center;
-                text-align:center;
-                color: rgba(16,42,67,.78);
-                user-select:none;
-                cursor:pointer;
-              }
-
-              .dp-ai-drop.is-over{
-                border-color: rgba(15,108,191,.60);
-                background: rgba(15,108,191,.085);
-              }
-
-              .dp-ai-drop__hint{
-                font-size: 13px;
-                margin: 0;
-                font-weight: 650;
-                color: rgba(16,42,67,.85);
-              }
-
-              .dp-ai-drop__sub{
-                font-size: 12px;
-                margin: 6px 0 0 0;
-                color: rgba(16,42,67,.65);
-              }
-
-              .dp-ai-choose{
-                margin-top: 12px;
-                appearance:none;
-                border: 1px solid rgba(16,42,67,.14);
-                background: #fff;
-                border-radius: 10px;
-                padding: 8px 12px;
-                cursor:pointer;
-                font-size: 12.5px;
-              }
-              .dp-ai-choose:hover{ border-color: rgba(15,108,191,.35); }
-
-              .dp-ai-file-row{
-                display:flex;
-                gap:10px;
-                align-items:center;
-                justify-content:space-between;
-                padding: 9px 10px;
-                border: 1px solid rgba(16,42,67,.10);
-                border-radius: 10px;
-                background: #fff;
-              }
-
-              .dp-ai-file-name{
-                font-size: 12.5px;
-                color: #102a43;
-                overflow:hidden;
-                white-space:nowrap;
-                text-overflow:ellipsis;
-                max-width: 420px;
-              }
-
-              .dp-ai-btn{
-                appearance:none;
-                border: 1px solid rgba(16,42,67,.14);
-                background: #fff;
-                border-radius: 10px;
-                padding: 7px 10px;
-                cursor:pointer;
-                font-size: 12.5px;
-              }
-              .dp-ai-btn:hover{ border-color: rgba(15,108,191,.35); }
-              .dp-ai-hidden{ display:none !important; }
-            </style>
-
-            <div class="dp-ai-img-wrap" id="dp-ai-img-wrap">
-              <div class="dp-ai-drop" id="dp-ai-drop" role="button" tabindex="0" aria-label="${textRecognitionDropAria}">
-                <p class="dp-ai-drop__hint">${textRecognitionDropHint}</p>
-                <p class="dp-ai-drop__sub">${textRecognitionDropSub}</p>
-                
-                <input class="dp-ai-file-input" id="dp-ai-file" type="file" accept="image/*" />
-              </div>
-
-              <div class="dp-ai-file-row dp-ai-hidden" id="dp-ai-file-row">
-                <div class="dp-ai-file-name" id="dp-ai-file-name"></div>
-                <div style="display:flex; gap:8px; align-items:center;">
-                  <button type="button" class="dp-ai-btn" id="dp-ai-change">${textRecognitionBtnChange}</button>
-                  <button type="button" class="dp-ai-btn" id="dp-ai-clear">${textRecognitionBtnClear}</button>
-                </div>
-              </div>
-            </div>
-          `,
+          html: fileDropRender.html,
         },
 
         {
@@ -186,7 +127,7 @@ export const buildTextRecognitionTemplateConfig = async ({ editor, selectionText
             { type: 'button', name: 'back', text: btnBack, buttonType: 'secondary' },
             {
               type: 'htmlpanel',
-              html: '<span style="margin-left:10px;font-size:12.5px;color:#5a6b7b;"></span>',
+              html: toolbarNoteRender.html,
             },
           ],
         },
@@ -239,7 +180,7 @@ export const buildTextRecognitionTemplateConfig = async ({ editor, selectionText
       Log.debug('[tiny_haccgen_extender:text_recognition] elements found drop=' + !!drop +
         ' fileInput=' + !!fileInput + ' fileRow=' + !!fileRow);
 
-      if (!drop || !chooseBtn || !fileInput || !fileRow || !fileName || !btnChange || !btnClear) {
+      if (!drop || !fileInput || !fileRow || !fileName || !btnChange || !btnClear) {
         Log.error('[tiny_haccgen_extender:text_recognition] missing required elements; aborting bindings');
         return;
       }
@@ -284,11 +225,13 @@ export const buildTextRecognitionTemplateConfig = async ({ editor, selectionText
         }
       });
 
-      chooseBtn.addEventListener('click', (e) => {
-        Log.debug('[tiny_haccgen_extender:text_recognition] chooseBtn click');
-        e.preventDefault();
-        pickFile();
-      });
+      if (chooseBtn) {
+        chooseBtn.addEventListener('click', (e) => {
+          Log.debug('[tiny_haccgen_extender:text_recognition] chooseBtn click');
+          e.preventDefault();
+          pickFile();
+        });
+      }
 
       fileInput.addEventListener('change', () => {
         const f = fileInput.files && fileInput.files[0] ? fileInput.files[0] : null;

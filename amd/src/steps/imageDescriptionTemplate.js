@@ -1,16 +1,40 @@
+// This file is part of Moodle - http://moodle.org/
+//
+// Moodle is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Moodle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
+
+/**
+ * Image-description dialog config.
+ *
+ * @module tiny_haccgen_extender/steps/imageDescriptionTemplate
+ * @copyright 2026, Dynamic Pixel
+ * @license http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
+
 import { get_string as getString } from 'core/str';
 import { alert as moodleAlert } from 'core/notification';
 import Log from 'core/log';
+import Templates from 'core/templates';
 import { makeRequest } from '../repository';
 import { component } from '../common';
 import { showLoadingOverlay } from '../loadingOverlay';
 import { openResultDialog } from './resultDialog/resultDialog';
 
-const readFileAsDataUrl = (file) =>
+const readFileAsDataUrl = (file, readFileErrorMessage) =>
   new Promise((resolve, reject) => {
     const r = new FileReader();
     r.onload = () => resolve(String(r.result || ''));
-    r.onerror = () => reject(new Error('Failed to read file.'));
+    r.onerror = () => reject(new Error(readFileErrorMessage));
     r.readAsDataURL(file);
   });
 
@@ -35,7 +59,43 @@ export const buildImageDescriptionTemplateConfig = async ({ editor, selectionTex
   const title = await getString('modal_title', component);
   const btnRun = await getString('btn_run', component);
   const btnCancel = await getString('btn_cancel', component);
+  const btnBack = await getString('btn_back', component);
+  const btnChoose = await getString('btn_choose', component);
+  const btnChange = await getString('btn_change', component);
+  const btnClear = await getString('btn_clear', component);
   const generatingMsg = await getString('generating', component);
+  const purposeImageDescriptionLabel = await getString('purpose_image_description_label', component);
+  const textRecognitionDropAria = await getString('text_recognition_drop_aria', component);
+  const textRecognitionDropHint = await getString('text_recognition_drop_hint', component);
+  const textRecognitionDropSub = await getString('text_recognition_drop_sub', component);
+  const placeholderImageDescriptionPrompt = await getString('placeholder_image_description_prompt', component);
+  const errInvalidImageFile = await getString('err_invalid_image_file', component);
+  const errDropImageFile = await getString('err_drop_image_file', component);
+  const errUploadImageFirst = await getString('err_upload_image_first', component);
+  const errPromptRequiredOrKeep = await getString('err_prompt_required_or_keep', component);
+  const errFailedReadImageData = await getString('err_failed_read_image_data', component);
+  const errFailedReadFile = await getString('err_failed_read_file', component);
+  const fileDropRender = await Templates.renderForPromise(
+    'tiny_haccgen_extender/components/file-dropzone',
+    {
+      droparia: textRecognitionDropAria,
+      drophint: textRecognitionDropHint,
+      dropsub: textRecognitionDropSub,
+      choosefile: btnChoose,
+      changefile: btnChange,
+      clearfile: btnClear,
+      showchoosebutton: true,
+    }
+  );
+  const toolbarNoteRender = await Templates.renderForPromise(
+    'tiny_haccgen_extender/components/toolbar-note',
+    {}
+  );
+  [fileDropRender, toolbarNoteRender].forEach((item) => {
+    if (item.js) {
+      Templates.runTemplateJS(item.js);
+    }
+  });
 
   // Keep file in closure. (Not in dialog data; TinyMCE data is JSON.)
   let selectedFile = null;
@@ -54,7 +114,7 @@ export const buildImageDescriptionTemplateConfig = async ({ editor, selectionTex
   };
 
   return {
-    title: `${title}: Image description`,
+    title: `${title}: ${purposeImageDescriptionLabel}`,
     size: 'medium',
 
     body: {
@@ -63,120 +123,16 @@ export const buildImageDescriptionTemplateConfig = async ({ editor, selectionTex
         {
           type: 'htmlpanel',
           name: 'imgDrop',
-          html: `
-            <style>
-              .dp-ai-img-wrap{
-                display:flex;
-                flex-direction:column;
-                gap:10px;
-                margin-top: 2px;
-              }
-
-              .dp-ai-drop{
-                border: 2px dashed rgba(15,108,191,.28);
-                background: rgba(15,108,191,.045);
-                border-radius: 12px;
-                padding: 22px 16px;
-                min-height: 140px;
-                display:flex;
-                flex-direction:column;
-                align-items:center;
-                justify-content:center;
-                text-align:center;
-                color: rgba(16,42,67,.78);
-                user-select:none;
-                cursor:pointer;
-              }
-
-              .dp-ai-drop.is-over{
-                border-color: rgba(15,108,191,.60);
-                background: rgba(15,108,191,.085);
-              }
-
-              .dp-ai-drop__hint{
-                font-size: 13px;
-                margin: 0;
-                font-weight: 650;
-                color: rgba(16,42,67,.85);
-              }
-
-              .dp-ai-drop__sub{
-                font-size: 12px;
-                margin: 6px 0 0 0;
-                color: rgba(16,42,67,.65);
-              }
-
-              .dp-ai-choose{
-                margin-top: 12px;
-                appearance:none;
-                border: 1px solid rgba(16,42,67,.14);
-                background: #fff;
-                border-radius: 10px;
-                padding: 8px 12px;
-                cursor:pointer;
-                font-size: 12.5px;
-              }
-              .dp-ai-choose:hover{ border-color: rgba(15,108,191,.35); }
-
-              .dp-ai-file-row{
-                display:flex;
-                gap:10px;
-                align-items:center;
-                justify-content:space-between;
-                padding: 9px 10px;
-                border: 1px solid rgba(16,42,67,.10);
-                border-radius: 10px;
-                background: #fff;
-              }
-
-              .dp-ai-file-name{
-                font-size: 12.5px;
-                color: #102a43;
-                overflow:hidden;
-                white-space:nowrap;
-                text-overflow:ellipsis;
-                max-width: 420px;
-              }
-
-              .dp-ai-btn{
-                appearance:none;
-                border: 1px solid rgba(16,42,67,.14);
-                background: #fff;
-                border-radius: 10px;
-                padding: 7px 10px;
-                cursor:pointer;
-                font-size: 12.5px;
-              }
-              .dp-ai-btn:hover{ border-color: rgba(15,108,191,.35); }
-              .dp-ai-hidden{ display:none !important; }
-            </style>
-
-            <div class="dp-ai-img-wrap" id="dp-ai-img-wrap">
-              <div class="dp-ai-drop" id="dp-ai-drop" role="button" tabindex="0" aria-label="Drop image here or choose file">
-                <p class="dp-ai-drop__hint">Drag &amp; drop an image here</p>
-                <p class="dp-ai-drop__sub">or click to choose a file (PNG, JPG, JPEG, WEBP)</p>
-                <button type="button" class="dp-ai-choose" id="dp-ai-choose">Choose file</button>
-                <input class="dp-ai-file-input" id="dp-ai-file" type="file" accept="image/*" />
-              </div>
-
-              <div class="dp-ai-file-row dp-ai-hidden" id="dp-ai-file-row">
-                <div class="dp-ai-file-name" id="dp-ai-file-name"></div>
-                <div style="display:flex; gap:8px; align-items:center;">
-                  <button type="button" class="dp-ai-btn" id="dp-ai-change">Change</button>
-                  <button type="button" class="dp-ai-btn" id="dp-ai-clear">Clear</button>
-                </div>
-              </div>
-            </div>
-          `,
+          html: fileDropRender.html,
         },
 
         {
           type: 'bar',
           items: [
-            { type: 'button', name: 'back', text: 'Back', buttonType: 'secondary' },
+            { type: 'button', name: 'back', text: btnBack, buttonType: 'secondary' },
             {
               type: 'htmlpanel',
-              html: '<span style="margin-left:10px;font-size:12.5px;color:#5a6b7b;"></span>',
+              html: toolbarNoteRender.html,
             },
           ],
         },
@@ -185,7 +141,7 @@ export const buildImageDescriptionTemplateConfig = async ({ editor, selectionTex
           type: 'textarea',
           name: 'prompt',
           label: '',
-          placeholder: 'Describe what is being shown on the image',
+          placeholder: placeholderImageDescriptionPrompt,
         },
       ],
     },
@@ -293,7 +249,7 @@ export const buildImageDescriptionTemplateConfig = async ({ editor, selectionTex
         logFile('fileInput change file', f);
 
         if (f && !isImage(f)) {
-          moodleAlert(title, 'Please choose an image file (PNG/JPG/WEBP).');
+          moodleAlert(title, errInvalidImageFile);
           fileInput.value = '';
           setFile(null);
           return;
@@ -339,7 +295,7 @@ export const buildImageDescriptionTemplateConfig = async ({ editor, selectionTex
         logFile('drop event file', f);
 
         if (!f || !isImage(f)) {
-          moodleAlert(title, 'Please drop an image file (PNG/JPG/WEBP).');
+          moodleAlert(title, errDropImageFile);
           return;
         }
 
@@ -415,13 +371,13 @@ export const buildImageDescriptionTemplateConfig = async ({ editor, selectionTex
 
       if (!fileToUse) {
         Log.error('[tiny_haccgen_extender:image_description] no file found; showing alert');
-        await moodleAlert(title, 'Please upload an image first.');
+        await moodleAlert(title, errUploadImageFirst);
         return;
       }
 
       if (!prompt) {
         Log.error('[tiny_haccgen_extender:image_description] empty prompt; showing alert');
-        await moodleAlert(title, 'Please enter a prompt (or keep a short instruction).');
+        await moodleAlert(title, errPromptRequiredOrKeep);
         return;
       }
 
@@ -429,7 +385,7 @@ export const buildImageDescriptionTemplateConfig = async ({ editor, selectionTex
 
       try {
         Log.debug('[tiny_haccgen_extender:image_description] reading file as data URL');
-        const dataUrl = await readFileAsDataUrl(fileToUse);
+        const dataUrl = await readFileAsDataUrl(fileToUse, errFailedReadFile);
         Log.debug('[tiny_haccgen_extender:image_description] dataUrl length', { len: dataUrl.length });
 
         const b64 = dataUrlToBase64(dataUrl);
@@ -441,7 +397,7 @@ export const buildImageDescriptionTemplateConfig = async ({ editor, selectionTex
             api.unblock();
           }
           Log.error('[tiny_haccgen_extender:image_description] failed to extract base64');
-          await moodleAlert(title, 'Failed to read image data.');
+          await moodleAlert(title, errFailedReadImageData);
           return;
         }
 

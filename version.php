@@ -28,7 +28,7 @@
 defined('MOODLE_INTERNAL') || die();
 
 $plugin->component = 'tiny_haccgen_extender';
-$plugin->version   = 2026041000;
+$plugin->version   = 2026041012;
 $plugin->requires  = 2022112800;
 $plugin->maturity  = MATURITY_STABLE;
 $plugin->release   = '1.0';

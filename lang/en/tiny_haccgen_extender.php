@@ -26,11 +26,17 @@
 $string['btn_back'] = 'Back';
 $string['btn_cancel'] = 'Cancel';
 $string['btn_change'] = 'Change';
+$string['btn_choose'] = 'Choose file';
 $string['btn_clear'] = 'Clear';
+$string['btn_close'] = 'Close';
+$string['btn_copy'] = 'Copy';
+$string['btn_insert_below'] = 'Insert below';
+$string['btn_replace_selection'] = 'Replace selection';
 $string['btn_run'] = 'Run';
 $string['button_open'] = 'Haccgen';
 $string['cachedef_videogen_options'] = 'Video generation options cache';
 $string['err_bad_options'] = 'Options must be valid JSON.';
+$string['err_avatar_options_load_failed'] = 'Failed to load avatar options.';
 $string['err_drop_image_file'] = 'Please drop an image file (PNG/JPG/WEBP).';
 $string['err_endpoint_not_configured'] = 'Endpoint URL is not configured.';
 $string['err_failed_read_file'] = 'Failed to read file.';
@@ -38,20 +44,33 @@ $string['err_failed_read_image_data'] = 'Failed to read image data.';
 $string['err_invalid_image_file'] = 'Please choose an image file (PNG/JPG/WEBP).';
 $string['err_no_selection'] = 'Please select some text first.';
 $string['err_prompt_required'] = 'Please enter a prompt.';
+$string['err_script_required'] = 'Please enter text in the script box.';
 $string['err_prompt_required_or_keep'] = 'Please enter a prompt (or keep a short instruction).';
 $string['err_subscription_credentials_missing'] = 'Subscription Manager API key/secret are required. Ask your admin to create a subscription and copy the API key and API secret here.';
 $string['err_upload_image_first'] = 'Please upload an image first.';
 $string['err_video_options_load_failed'] = 'Failed to load video generation options.';
+$string['err_media_prepare_insert'] = 'Media file could not be prepared. Cannot insert.';
+$string['err_media_prepare_replace'] = 'Media file could not be prepared. Cannot replace selection.';
+$string['field_avatar_id'] = 'Avatar ID';
 $string['field_aspect_ratio'] = 'Aspect ratio';
+$string['field_density'] = 'Density';
 $string['field_font'] = 'Font';
+$string['field_gender'] = 'Gender';
 $string['field_language'] = 'Language';
+$string['field_language_type'] = 'Language type';
+$string['field_max_words'] = 'Maximum amount of words';
 $string['field_options'] = 'Options (JSON)';
 $string['field_output_format'] = 'Output format';
 $string['field_preview'] = 'Input preview';
 $string['field_prompt'] = 'Prompt';
 $string['field_purpose'] = 'What do you want to do?';
+$string['field_resolution'] = 'Resolution';
+$string['field_script'] = 'Script';
+$string['field_size'] = 'Size';
 $string['field_template'] = 'Template';
+$string['field_target_language'] = 'Target language';
 $string['field_use_generative_image'] = 'Use generative image';
+$string['field_video_style_id'] = 'Video style ID';
 $string['field_voice'] = 'Voice';
 $string['generating'] = 'Generating...';
 $string['generation_time_label'] = 'Generated in';
@@ -61,8 +80,24 @@ $string['menu_open'] = 'Haccgen';
 $string['menu_tools'] = 'Haccgen tools';
 $string['modal_title'] = 'Haccgen extender';
 $string['no'] = 'No';
+$string['option_female'] = 'Female';
+$string['option_high'] = 'High';
+$string['option_keep_language_type'] = 'Keep language type';
+$string['option_male'] = 'Male';
+$string['option_medium'] = 'Medium';
+$string['option_no_limit'] = 'No limit';
+$string['option_simple_language'] = 'Simple language';
+$string['option_technical_language'] = 'Technical language';
+$string['placeholder_create_audio_prompt'] = 'Paste or type the text you want to convert to audio (or select text before opening).';
+$string['placeholder_detailed_description_prompt'] = 'Paste or type the text you want to expand (or select text before opening).';
+$string['placeholder_avatar_script'] = 'Example: Welcome! In this lesson we will cover Agile basics. We will start with Scrum roles, then events, then artifacts.';
+$string['placeholder_image_generation_prompt'] = 'Describe the image you want to generate...';
+$string['placeholder_image_description_prompt'] = 'Describe what is being shown on the image';
+$string['placeholder_infograph_prompt'] = 'Example: Create a clean infographic titled "Agile Project Overview" with 4 sections: Principles, Roles, Events, Artifacts. Use blue/white theme.';
 $string['placeholder_options_json'] = '{"tone":"formal"}';
+$string['placeholder_summarize_prompt'] = 'Paste or type the text you want to summarize (or select text in the editor before opening).';
 $string['placeholder_text_recognition_prompt'] = 'E.g. Extract all text exactly as-is, preserve line breaks.';
+$string['placeholder_translate_prompt'] = 'Paste or type the text you want to translate (or select text before opening).';
 $string['placeholder_video_prompt'] = 'Describe the video you want to create...';
 $string['pluginname'] = 'Haccgen extender';
 $string['privacy:metadata'] = 'The Haccgen extender plugin does not store any personal data.';
@@ -101,21 +136,17 @@ $string['setting_subscription_api_key_desc'] = 'Paste the API key from the Subsc
 $string['setting_subscription_api_secret'] = 'Subscription Manager API secret';
 $string['setting_subscription_api_secret_desc'] = 'Paste the API secret from the Subscription Manager subscription for this LMS.';
 $string['setting_subscription_credentials_heading'] = 'Where to get API credentials';
-$string['setting_subscription_credentials_intro'] = '<div style="background:#f1f4f8;padding:15px;border-radius:8px;border:1px solid #dce3ea;margin-bottom:12px;">
-    <p style="font-size:14px;margin:0 0 12px;">
+$string['setting_subscription_credentials_intro'] = '<div>
+    <p>
         To use <strong>Haccgen extender</strong> with Subscription Manager, generate your
         <strong>API key</strong> and <strong>API secret</strong> from the HACCGEN dashboard (same as for the main Haccgen plugin).
         For setup help, see the
-        <a href="https://docs.google.com/document/d/1f31ttH_NXGp0Suc5JiqLrSkVYNOuoy4XnJb2px0oKUw/edit?usp=sharing" target="_blank" rel="noreferrer noopener"
-           style="color:#0056d2;font-weight:600;text-decoration:underline;">
+        <a href="https://docs.google.com/document/d/1f31ttH_NXGp0Suc5JiqLrSkVYNOuoy4XnJb2px0oKUw/edit?usp=sharing" target="_blank" rel="noreferrer noopener">
            installation and setup tutorial
         </a>.
     </p>
     <div>
-        <a href="https://subscription.dynamicpixel.co.in/" target="_blank" rel="noreferrer noopener"
-           style="display:inline-block;background:#0056d2;color:#fff!important;
-                  padding:10px 18px;border-radius:5px;text-decoration:none;
-                  font-weight:600;box-shadow:0px 2px 5px rgba(0,0,0,0.1);">
+        <a href="https://subscription.dynamicpixel.co.in/" target="_blank" rel="noreferrer noopener">
             Get API credentials
         </a>
     </div>

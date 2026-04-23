@@ -1,5 +1,29 @@
+// This file is part of Moodle - http://moodle.org/
+//
+// Moodle is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Moodle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
+
+/**
+ * Main modal UI flow for tiny_haccgen_extender.
+ *
+ * @module tiny_haccgen_extender/ui
+ * @copyright 2026, Dynamic Pixel
+ * @license http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
+
 import { get_string as getString, get_strings as getStrings } from 'core/str';
 import { alert as moodleAlert } from 'core/notification';
+import Templates from 'core/templates';
 import { makeRequest } from './repository';
 import { getAllowedPurposes } from './options';
 import { component } from './common';
@@ -166,6 +190,14 @@ const buildAllowedPurposeDefs = (editor, purposeDefs) => {
 const findPurpose = (defs, key) => defs.find((p) => p.key === key);
 const findTemplate = (purpose, templateId) =>
   (purpose?.templates || []).find((t) => t.id === templateId) || purpose?.templates?.[0];
+
+const renderTemplateHtml = async (templatename, context) => {
+  const rendered = await Templates.renderForPromise(`tiny_haccgen_extender/components/${templatename}`, context);
+  if (rendered.js) {
+    Templates.runTemplateJS(rendered.js);
+  }
+  return rendered.html;
+};
 
 const getTopDialogEl = () => {
   try {
@@ -341,227 +373,21 @@ const getPurposeIconSvg = (key) => {
   `;
 };
 
-const purposeGalleryHtml = (purposeDefs, toolsLabel, selectPurposeHelp) => {
-  const cards = purposeDefs
-    .map(
-      (p) => `
-    <button type="button" class="dp-ai-menuItem" data-purpose="${p.key}">
-      <span class="dp-ai-icon" aria-hidden="true">
-        ${getPurposeIconSvg(p.key)}
-      </span>
-
-      <span class="dp-ai-menuItem__body">
-        <span class="dp-ai-menuItem__title">${p.label}</span>
-        <span class="dp-ai-menuItem__desc">${p.description}</span>
-      </span>
-
-      <span class="dp-ai-chevron" aria-hidden="true">
-        <svg viewBox="0 0 24 24" width="18" height="18" fill="none">
-          <path d="M10 7l5 5-5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-      </span>
-    </button>
-  `
-    )
-    .join('');
-
-  return `
-    <style>
-      /* ===== Blue/White Theme Tokens ===== */
-      .tox .dp-ai-wrap{
-        --dp-ai-primary: #222f3e;
-        --dp-ai-primary-600: #0b5aa0;
-        --dp-ai-ink: #0f1f2e;
-        --dp-ai-muted: rgba(15,31,46,.70);
-
-        --dp-ai-surface: #ffffff;
-        --dp-ai-surface-2: #f6f9ff;
-        --dp-ai-border: rgba(15,108,191,.18);
-        --dp-ai-border-soft: rgba(15,31,46,.10);
-
-        --dp-ai-shadow: 0 10px 26px rgba(15,108,191,.12);
-        --dp-ai-shadow-soft: 0 6px 18px rgba(0,0,0,.06);
-
-        font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-        display:flex;
-        flex-direction:column;
-        gap:12px;
-      }
-
-      /* ===== Header / Hero ===== */
-      .tox .dp-ai-hero{
-        border-radius: 14px;
-        padding: 16px 16px;
-        background: linear-gradient(145deg, rgba(15,108,191,.12) 0%, rgba(15,108,191,.04) 50%, rgba(15,108,191,.02) 100%);
-        border: 1px solid var(--dp-ai-border);
-        box-shadow: 0 4px 14px rgba(15,108,191,.08), inset 0 1px 0 rgba(255,255,255,.6);
-      }
-
-      .tox .dp-ai-title{
-        margin: 0 0 6px 0;
-        font-size: 15px;
-        font-weight: 800;
-        letter-spacing: .02em;
-        color: var(--dp-ai-ink);
-        display: flex;
-        align-items: center;
-        gap: 10px;
-      }
-
-      .tox .dp-ai-sub{
-        margin: 0;
-        font-size: 12.5px;
-        line-height: 1.5;
-        color: rgba(15,31,46,.75);
-      }
-
-      /* ===== Grid ===== */
-      .tox .dp-ai-grid{
-        display:grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 12px;
-        max-height: 420px;
-        overflow:auto;
-        padding: 4px 6px 6px 2px;
-      }
-
-      .tox .dp-ai-grid::-webkit-scrollbar{ width: 10px; }
-      .tox .dp-ai-grid::-webkit-scrollbar-thumb{
-        background: rgba(15,108,191,.22);
-        border-radius: 999px;
-        border: 3px solid rgba(255,255,255,.9);
-      }
-      .tox .dp-ai-grid::-webkit-scrollbar-track{
-        background: rgba(15,108,191,.06);
-        border-radius: 999px;
-      }
-
-      /* ===== Cards ===== */
-      .tox button.dp-ai-menuItem{
-        position: relative;
-        appearance: none;
-        -webkit-appearance: none;
-        width: 100%;
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        padding: 14px 14px;
-        border-radius: 14px;
-        border: 1px solid var(--dp-ai-border-soft);
-        background: var(--dp-ai-surface);
-        text-align: left;
-        cursor: pointer;
-        box-shadow: 0 2px 8px rgba(0,0,0,.04);
-        transition: transform .12s ease, box-shadow .15s ease, border-color .15s ease, background .15s ease;
-      }
-
-      .tox button.dp-ai-menuItem:hover{
-        transform: translateY(-2px);
-        border-color: rgba(15,108,191,.35);
-        box-shadow: 0 8px 24px rgba(15,108,191,.14);
-        background: linear-gradient(180deg, rgba(15,108,191,.07) 0%, #fff 100%);
-      }
-
-      .tox button.dp-ai-menuItem:active{
-        transform: translateY(0);
-      }
-
-      .tox button.dp-ai-menuItem:focus-visible{
-        outline: none;
-        border-color: rgba(15,108,191,.55);
-        box-shadow: 0 0 0 3px rgba(15,108,191,.22), var(--dp-ai-shadow);
-      }
-
-      /* ===== Icon pill ===== */
-.tox .dp-ai-icon{
-  flex: 0 0 auto;
-  width: 38px;
-  height: 38px;
-  border-radius: 12px;
-  display: grid;
-  place-items: center;
-
-  /* make icon strokes white */
-  color: #fff;
-
-  /* make the pill background your desired color */
-  background: var(--dp-ai-primary); /* e.g. #090909 or your blue */
-  border: 1px solid rgba(0,0,0,.12);
-}
-
-
-      /* ===== Text ===== */
-      .tox .dp-ai-menuItem__body{
-        display:flex;
-        flex-direction:column;
-        gap:4px;
-        min-width: 0;
-      }
-
-      .tox .dp-ai-menuItem__title{
-        font-size: 13.5px;
-        font-weight: 850;
-        color: var(--dp-ai-ink);
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-      }
-
-      .tox .dp-ai-menuItem__desc{
-        font-size: 12.25px;
-        line-height: 1.35;
-        color: var(--dp-ai-muted);
-        display: -webkit-box;
-        -webkit-line-clamp: 2;
-        -webkit-box-orient: vertical;
-        overflow: hidden;
-      }
-
-      /* ===== Right chevron ===== */
-      .tox .dp-ai-chevron{
-        margin-left: auto;
-        color: rgba(15,108,191,.55);
-        transition: transform .12s ease, color .12s ease;
-      }
-      .tox button.dp-ai-menuItem:hover .dp-ai-chevron{
-        transform: translateX(2px);
-        color: rgba(15,108,191,.85);
-      }
-
-      @media (max-width: 520px){
-        .tox .dp-ai-grid{ grid-template-columns: 1fr; }
-      }
-    </style>
-
-    <div class="dp-ai-wrap">
-      <div class="dp-ai-hero">
-        <div class="dp-ai-title">
-          <span style="color: var(--dp-ai-primary); display:inline-grid;
-           place-items:center; width:22px; height:22px; border-radius:8px; 
-           background: rgba(15,108,191,.12); border:1px solid rgba(15,108,191,.18);">
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" aria-hidden="true">
-              <path d="M12 2l2.2 5.2L20 9l-4 3.6L17.2 18 12 15l-5.2 3 1.2-5.4L4 9l5.8-1.8L12 2z"
-                stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-            </svg>
-          </span>
-          ${toolsLabel}
-        </div>
-        <p class="dp-ai-sub">${selectPurposeHelp}</p>
-      </div>
-
-      <div class="dp-ai-grid" role="list">
-        ${cards}
-      </div>
-    </div>
-  `;
-};
-
-
 const buildStep1Config = async (editor, purposeDefs) => {
   const title = await getString('modal_title', component);
   const btnCancel = await getString('btn_cancel', component);
   const menuTools = await getString('menu_tools', component);
   const selectPurposeHelp = await getString('select_purpose_to_load_templates', component);
+  const purposeGallery = await renderTemplateHtml('purpose-gallery', {
+    toolslabel: menuTools,
+    selectpurposehelp: selectPurposeHelp,
+    cards: purposeDefs.map((p) => ({
+      key: p.key,
+      label: p.label,
+      description: p.description,
+      iconsvg: getPurposeIconSvg(p.key),
+    })),
+  });
 
   return {
     title,
@@ -572,7 +398,7 @@ const buildStep1Config = async (editor, purposeDefs) => {
         {
           type: 'htmlpanel',
           name: 'purposegallery',
-          html: purposeGalleryHtml(purposeDefs, menuTools, selectPurposeHelp),
+          html: purposeGallery,
         },
       ],
     },
@@ -599,6 +425,10 @@ const buildStep2Config = async (editor, purposeDefs, selectionText, purposeKey, 
   const template = findTemplate(purpose, templateId);
   const templateItems = (purpose.templates || []).map((t) => ({ value: t.id, text: t.name }));
   const templatesFor = await getString('templates_for', component, purpose.label);
+  const step2HeadHtml = await renderTemplateHtml('dialog-head', {
+    title: purpose.label,
+    subtitle: step2SelectTemplateHelp,
+  });
 
   return {
     title: `${title}: ${purpose.label}`,
@@ -609,43 +439,7 @@ const buildStep2Config = async (editor, purposeDefs, selectionText, purposeKey, 
         {
           type: 'htmlpanel',
           name: 'step2head',
-          html: `
-          <style>
-            .dp-ai-step2{
-              background: linear-gradient(135deg, rgba(15,108,191,.10), rgba(15,108,191,.03));
-              border:1px solid rgba(15,108,191,.18);
-              border-radius:12px;
-              padding:12px 12px;
-              margin-bottom:10px;
-              box-shadow: 0 8px 22px rgba(15,108,191,.10);
-            }
-            .dp-ai-step2__t{
-              font-weight:800;
-              margin:0 0 4px;
-              color:#102a43;
-              font-size:14px;
-            }
-            .dp-ai-step2__s{
-              margin:0;
-              font-size:12.5px;
-              line-height:1.4;
-              color:rgba(16,42,67,.78);
-            }
-            .tox .tox-textarea, .tox .tox-textfield{
-              border-radius: 10px !important;
-            }
-            .tox .tox-textarea{
-              font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
-               "Liberation Mono", "Courier New", monospace !important;
-              font-size: 12.5px !important;
-              line-height: 1.45 !important;
-            }
-          </style>
-
-          <div class="dp-ai-step2">
-            <p class="dp-ai-step2__t">${purpose.label}</p>
-            <p class="dp-ai-step2__s">${step2SelectTemplateHelp}</p>
-          </div>`,
+          html: step2HeadHtml,
         },
         {
           type: 'bar',

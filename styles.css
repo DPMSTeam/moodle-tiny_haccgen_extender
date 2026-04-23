@@ -29,6 +29,28 @@
     overflow: auto;
 }
 
+.tox .dp-ai-result-card {
+    display: flex;
+    padding: 14px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+    align-self: stretch;
+    border-radius: 12px;
+    border: 1px solid rgba(15, 108, 191, 0.12);
+    background: #fff;
+    box-shadow: 0 2px 12px rgba(15, 108, 191, 0.06);
+}
+
+.tox .dp-ai-result-text-scroll {
+    max-height: 52vh;
+    overflow: auto;
+}
+
+.tox .dp-ai-result-body {
+    margin: 0;
+}
+
 .tox .dp-ai-result-timestamps {
     margin-bottom: 10px;
     font-size: 12px;
@@ -40,6 +62,17 @@
 .tox .dp-ai-result-text video.mw-100 {
     max-height: min(40vh, 340px) !important;
     height: auto !important;
+}
+
+.tox .dp-ai-result-media {
+    width: 100%;
+    max-width: 100%;
+    max-height: 50vh;
+    height: auto;
+    display: block;
+    border-radius: 8px;
+    object-fit: contain;
+    background: #000;
 }
 
 .tox .dp-ai-result-text iframe.dp-audio-iframe {
@@ -85,6 +118,346 @@
     margin-top: 8px;
     font-size: 12px;
     opacity: 0.75;
+}
+
+.tox .dp-ai-result-note {
+    margin-top: 10px;
+    font-size: 12.5px;
+    opacity: 0.75;
+}
+
+/* Purpose picker (step 1) */
+.tox .dp-ai-wrap {
+    --dp-ai-primary: #222f3e;
+    --dp-ai-primary-600: #0b5aa0;
+    --dp-ai-ink: #0f1f2e;
+    --dp-ai-muted: rgba(15, 31, 46, 0.7);
+    --dp-ai-surface: #fff;
+    --dp-ai-border: rgba(15, 108, 191, 0.18);
+    --dp-ai-border-soft: rgba(15, 31, 46, 0.1);
+    --dp-ai-shadow: 0 10px 26px rgba(15, 108, 191, 0.12);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.tox .dp-ai-hero {
+    border-radius: 14px;
+    padding: 16px;
+    background: linear-gradient(
+        145deg,
+        rgba(15, 108, 191, 0.12) 0%,
+        rgba(15, 108, 191, 0.04) 50%,
+        rgba(15, 108, 191, 0.02) 100%
+    );
+    border: 1px solid var(--dp-ai-border);
+    box-shadow: 0 4px 14px rgba(15, 108, 191, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+.tox .dp-ai-title {
+    margin: 0 0 6px;
+    font-size: 15px;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    color: var(--dp-ai-ink);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.tox .dp-ai-title-icon {
+    color: var(--dp-ai-primary);
+    display: inline-grid;
+    place-items: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 8px;
+    background: rgba(15, 108, 191, 0.12);
+    border: 1px solid rgba(15, 108, 191, 0.18);
+}
+
+.tox .dp-ai-sub {
+    margin: 0;
+    font-size: 12.5px;
+    line-height: 1.5;
+    color: rgba(15, 31, 46, 0.75);
+}
+
+.tox .dp-ai-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    max-height: 420px;
+    overflow: auto;
+    padding: 4px 6px 6px 2px;
+}
+
+.tox .dp-ai-grid::-webkit-scrollbar {
+    width: 10px;
+}
+
+.tox .dp-ai-grid::-webkit-scrollbar-thumb {
+    background: rgba(15, 108, 191, 0.22);
+    border-radius: 999px;
+    border: 3px solid rgba(255, 255, 255, 0.9);
+}
+
+.tox .dp-ai-grid::-webkit-scrollbar-track {
+    background: rgba(15, 108, 191, 0.06);
+    border-radius: 999px;
+}
+
+.tox button.dp-ai-menuItem {
+    position: relative;
+    appearance: none;
+    -webkit-appearance: none;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px;
+    border-radius: 14px;
+    border: 1px solid var(--dp-ai-border-soft);
+    background: var(--dp-ai-surface);
+    text-align: left;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    transition: transform 0.12s ease, box-shadow 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+
+.tox button.dp-ai-menuItem:hover {
+    transform: translateY(-2px);
+    border-color: rgba(15, 108, 191, 0.35);
+    box-shadow: 0 8px 24px rgba(15, 108, 191, 0.14);
+    background: linear-gradient(180deg, rgba(15, 108, 191, 0.07) 0%, #fff 100%);
+}
+
+.tox button.dp-ai-menuItem:active {
+    transform: translateY(0);
+}
+
+.tox button.dp-ai-menuItem:focus-visible {
+    outline: none;
+    border-color: rgba(15, 108, 191, 0.55);
+    box-shadow: 0 0 0 3px rgba(15, 108, 191, 0.22), var(--dp-ai-shadow);
+}
+
+.tox .dp-ai-icon {
+    flex: 0 0 auto;
+    width: 38px;
+    height: 38px;
+    border-radius: 12px;
+    display: grid;
+    place-items: center;
+    color: #fff;
+    background: var(--dp-ai-primary);
+    border: 1px solid rgba(0, 0, 0, 0.12);
+}
+
+.tox .dp-ai-menuItem__body {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+
+.tox .dp-ai-menuItem__title {
+    font-size: 13.5px;
+    font-weight: 850;
+    color: var(--dp-ai-ink);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.tox .dp-ai-menuItem__desc {
+    font-size: 12.25px;
+    line-height: 1.35;
+    color: var(--dp-ai-muted);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.tox .dp-ai-chevron {
+    margin-left: auto;
+    color: rgba(15, 108, 191, 0.55);
+    transition: transform 0.12s ease, color 0.12s ease;
+}
+
+.tox button.dp-ai-menuItem:hover .dp-ai-chevron {
+    transform: translateX(2px);
+    color: rgba(15, 108, 191, 0.85);
+}
+
+@media (max-width: 520px) {
+    .tox .dp-ai-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Shared dialog headers/fields */
+.tox .dp-ai-x-head,
+.tox .dp-ai-step2 {
+    background: linear-gradient(135deg, rgba(15, 108, 191, 0.1), rgba(15, 108, 191, 0.03));
+    border: 1px solid rgba(15, 108, 191, 0.18);
+    border-radius: 12px;
+    padding: 12px;
+    margin-bottom: 10px;
+    box-shadow: 0 8px 22px rgba(15, 108, 191, 0.1);
+}
+
+.tox .dp-ai-x-head__t,
+.tox .dp-ai-step2__t {
+    font-weight: 800;
+    margin: 0 0 4px;
+    color: #102a43;
+    font-size: 14px;
+}
+
+.tox .dp-ai-x-head__s,
+.tox .dp-ai-step2__s {
+    margin: 0;
+    font-size: 12.5px;
+    line-height: 1.4;
+    color: rgba(16, 42, 67, 0.78);
+}
+
+.tox .tox-dialog .tox-textarea,
+.tox .tox-dialog .tox-textfield {
+    border-radius: 10px !important;
+}
+
+.tox .tox-dialog .tox-textarea {
+    min-height: 260px !important;
+    font-size: 12.5px !important;
+    line-height: 1.45 !important;
+}
+
+/* Image/text recognition file picker */
+.tox .dp-ai-img-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 2px;
+}
+
+.tox .dp-ai-drop {
+    border: 2px dashed rgba(15, 108, 191, 0.28);
+    background: rgba(15, 108, 191, 0.045);
+    border-radius: 12px;
+    padding: 22px 16px;
+    min-height: 140px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    color: rgba(16, 42, 67, 0.78);
+    user-select: none;
+    cursor: pointer;
+}
+
+.tox .dp-ai-drop.is-over {
+    border-color: rgba(15, 108, 191, 0.6);
+    background: rgba(15, 108, 191, 0.085);
+}
+
+.tox .dp-ai-drop__hint {
+    font-size: 13px;
+    margin: 0;
+    font-weight: 650;
+    color: rgba(16, 42, 67, 0.85);
+}
+
+.tox .dp-ai-drop__sub {
+    font-size: 12px;
+    margin: 6px 0 0;
+    color: rgba(16, 42, 67, 0.65);
+}
+
+.tox .dp-ai-choose,
+.tox .dp-ai-btn {
+    appearance: none;
+    border: 1px solid rgba(16, 42, 67, 0.14);
+    background: #fff;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 12.5px;
+}
+
+.tox .dp-ai-choose {
+    margin-top: 12px;
+    padding: 8px 12px;
+}
+
+.tox .dp-ai-btn {
+    padding: 7px 10px;
+}
+
+.tox .dp-ai-choose:hover,
+.tox .dp-ai-btn:hover {
+    border-color: rgba(15, 108, 191, 0.35);
+}
+
+.tox .dp-ai-file-row {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    justify-content: space-between;
+    padding: 9px 10px;
+    border: 1px solid rgba(16, 42, 67, 0.1);
+    border-radius: 10px;
+    background: #fff;
+}
+
+.tox .dp-ai-file-name {
+    font-size: 12.5px;
+    color: #102a43;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    max-width: 420px;
+}
+
+.tox .dp-ai-file-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.tox .dp-ai-file-input {
+    display: none;
+}
+
+.tox .dp-ai-toolbar-note {
+    margin-left: 10px;
+    font-size: 12.5px;
+    color: #5a6b7b;
+}
+
+.tox .dp-ai-hidden {
+    display: none !important;
+}
+
+/* Inserted editor content media */
+.dp-ai-inserted-audio {
+    width: 100%;
+    max-width: 100%;
+}
+
+.dp-ai-inserted-image,
+.dp-ai-inserted-video {
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+    object-fit: contain;
+}
+
+.dp-ai-inserted-video {
+    background: #000;
 }
 
 .dp-ai-loading-overlay-container {

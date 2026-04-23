@@ -1,0 +1,137 @@
+/* This file is part of Moodle - http://moodle.org/
+ *
+ * Moodle is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * Moodle is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+/**
+ * Styles for the tiny_haccgen_extender plugin.
+ *
+ * @package tiny_haccgen_extender
+ * @copyright 2026, Dynamic Pixel
+ * @license http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
+
+/* Keep result preview bounded so dialog action buttons stay visible. */
+.tox .dp-ai-result-text {
+    width: 100%;
+    max-height: min(56vh, 460px);
+    overflow: auto;
+}
+
+.tox .dp-ai-result-timestamps {
+    margin-bottom: 10px;
+    font-size: 12px;
+    opacity: 0.8;
+    color: var(--dp-ai-muted, rgba(15, 31, 46, 0.7));
+}
+
+.tox .dp-ai-result-text img.mw-100,
+.tox .dp-ai-result-text video.mw-100 {
+    max-height: min(40vh, 340px) !important;
+    height: auto !important;
+}
+
+.tox .dp-ai-result-text iframe.dp-audio-iframe {
+    width: 100%;
+    max-width: 400px;
+    border: 0;
+}
+
+.tox .dp-ai-result-raw-response-label {
+    margin-top: 8px;
+    font-size: 12px;
+    opacity: 0.85;
+}
+
+.tox .dp-ai-result-raw-response-preview {
+    margin: 4px 0 0;
+    padding: 8px;
+    background: rgba(0, 0, 0, 0.05);
+    border-radius: 4px;
+    font-size: 11px;
+    max-height: 120px;
+    overflow: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.tox .dp-ai-result-html {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.tox .dp-ai-result-text-pre {
+    margin: 0;
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-size: 13px;
+    line-height: 1.45;
+    font-family: monospace;
+}
+
+.tox .dp-ai-result-error {
+    margin-top: 8px;
+    font-size: 12px;
+    opacity: 0.75;
+}
+
+.dp-ai-loading-overlay-container {
+    position: relative;
+}
+
+.dp-ai-loading-overlay-base {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+}
+
+.dp-ai-loading-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(255, 255, 255, 0.92);
+    z-index: 9999;
+    border-radius: 8px;
+}
+
+.dp-ai-global-loading-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(255, 255, 255, 0.88);
+    z-index: 200000;
+}
+
+.dp-ai-spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid rgba(15, 108, 191, 0.2);
+    border-top-color: #0f6cbf;
+    border-radius: 50%;
+    animation: dp-ai-spin 0.8s linear infinite;
+}
+
+.dp-ai-loading-overlay-message {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: #102a43;
+}
+
+@keyframes dp-ai-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}

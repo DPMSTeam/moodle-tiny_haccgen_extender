@@ -1,0 +1,74 @@
+{{!
+    This file is part of Moodle - http://moodle.org/
+
+    Moodle is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Moodle is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
+}}
+{{!
+    @template tiny_haccgen_extender/components/result-dialog-card
+
+    Result area for the Haccgen extender result dialog. Media tags are output in-template from URLs
+    so they are never stripped (no raw HTML in variables).
+
+    @copyright 2026, Dynamic Pixel
+    @license http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+}}
+{{#hasTimestamps}}
+<div class="dp-ai-result-timestamps">{{#generationTimeDisplay}}{{generationTimeDisplay}}{{/generationTimeDisplay}}{{#dialogTimeDisplay}}{{#generationTimeDisplay}} · {{/generationTimeDisplay}}{{dialogTimeDisplay}}{{/dialogTimeDisplay}}</div>
+{{/hasTimestamps}}
+<div class="dp-ai-result-text{{#wrapperClass}} {{wrapperClass}}{{/wrapperClass}}" style="{{wrapperStyle}}{{#wrapperExtraStyle}} {{wrapperExtraStyle}}{{/wrapperExtraStyle}}" data-text="result">
+    <p style="{{pStyle}}">
+    {{#audioIframeSrc}}
+    <iframe class="dp-audio-iframe" title="Audio player" width="100%" height="80" src="{{{audioIframeSrc}}}"></iframe>
+    {{/audioIframeSrc}}
+    {{^audioIframeSrc}}
+    {{#resultText}}
+    {{{resultText}}}
+    {{/resultText}}
+    {{^resultText}}
+    {{#isAudio}}
+    {{#audioHtml}}
+    {{{audioHtml}}}
+    {{/audioHtml}}
+    {{^audioHtml}}
+    {{#audioSrc}}
+    <audio class="dp-audio-player" controls preload="metadata" src="{{{audioSrc}}}">Your browser does not support audio.</audio>
+    {{/audioSrc}}
+    {{/audioHtml}}
+    {{/isAudio}}
+    {{#isImage}}
+    <img src="{{imageSrc}}" class="mw-100" style="{{imgStyle}}" alt="Generated image" />
+    {{/isImage}}
+    {{#isVideo}}
+    <video controls preload="metadata" class="mw-100" style="{{imgStyle}}" src="{{videoUrl}}">Your browser does not support video.</video>
+    {{/isVideo}}
+    {{#isImageIntentNoImage}}
+    No image could be extracted from the response. The service may return a different format.
+    <div class="dp-ai-result-raw-response-label">Raw response (first 500 chars):</div>
+    <pre class="dp-ai-result-raw-response-preview">{{imageErrorPreview}}</pre>
+    {{/isImageIntentNoImage}}
+    {{#isText}}
+    {{#beautifiedContent}}
+    <div class="dp-ai-result-html">{{{beautifiedContent}}}</div>
+    {{/beautifiedContent}}
+    {{^beautifiedContent}}
+    <pre class="dp-ai-result-text-pre">{{textContent}}</pre>
+    {{/beautifiedContent}}
+    {{/isText}}
+    {{/resultText}}
+    {{/audioIframeSrc}}
+    </p>
+    {{#errorMessage}}
+    <div class="dp-ai-result-error">{{errorMessage}}</div>
+    {{/errorMessage}}
+</div>

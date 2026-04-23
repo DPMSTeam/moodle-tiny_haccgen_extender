@@ -1,0 +1,7 @@
+# Keep PHP as LF for Moodle phpcs (line endings + file comment sniff).
+root = false
+
+[*.php]
+end_of_line = lf
+charset = utf-8
+insert_final_newline = true

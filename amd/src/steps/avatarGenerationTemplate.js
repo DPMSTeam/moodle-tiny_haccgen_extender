@@ -33,7 +33,7 @@ import { resolveDraftItemId } from '../draftItemid';
 const OPT_CACHE_KEY = 'dp_ai_heygen_opts_v2';
 const OPT_CACHE_TTL_MS = 3 * 60 * 60 * 1000; // 3 hours
 const PUBLIC_AVATARS_GALLERY_URL =
-  'https://dev.dynamicpixel.co.in/test4/local/subscription_manager/public_avatars.php';
+  'https://haccgen.com/local/subscription_manager/public_avatars.php';
 
 const readOptCache = () => {
   try {

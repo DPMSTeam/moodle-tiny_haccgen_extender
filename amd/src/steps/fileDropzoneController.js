@@ -24,6 +24,7 @@
 import { alert as moodleAlert } from 'core/notification';
 import Log from 'core/log';
 
+const safeText = (s) => String(s || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 const MAX_DEBUG_EVENTS = 300;
 const IMAGE_EXT_RE = /\.(png|jpe?g|gif|webp|bmp|svg|jfif|tiff?|ico|heic|heif|avif)$/i;
 const describeFile = (file) => ({
@@ -83,7 +84,7 @@ export class FileDropzoneController {
     this.btnChange = null;
     this.btnClear = null;
     this.dialogEl = null;
-    this.defaultDropNodes = [];
+    this.defaultDropHtml = '';
   }
 
   getSelectedFile() {
@@ -149,8 +150,7 @@ export class FileDropzoneController {
   }
 
   renderDropDefault() {
-    const clones = this.defaultDropNodes.map((node) => node.cloneNode(true));
-    this.drop.replaceChildren(...clones);
+    this.drop.innerHTML = this.defaultDropHtml;
     this.drop.classList.remove('dp-ai-drop--filled');
   }
 
@@ -182,25 +182,16 @@ export class FileDropzoneController {
       this.fileRow.classList.remove('dp-ai-hidden');
     }
 
-    const previewRoot = document.createElement('div');
-    previewRoot.className = 'dp-ai-drop-preview';
-
-    const nameEl = document.createElement('div');
-    nameEl.className = 'dp-ai-drop-preview__name';
-    nameEl.textContent = this.selectedFile.name;
-    previewRoot.appendChild(nameEl);
-
-    if (previewDataUrl) {
-      const imageWrap = document.createElement('div');
-      imageWrap.className = 'dp-ai-drop-preview__image-wrap';
-      const image = document.createElement('img');
-      image.src = previewDataUrl;
-      image.alt = this.selectedFile.name;
-      imageWrap.appendChild(image);
-      previewRoot.appendChild(imageWrap);
-    }
-
-    this.drop.replaceChildren(previewRoot);
+    const filename = safeText(this.selectedFile.name);
+    const imageHtml = previewDataUrl
+      ? `<div class="dp-ai-drop-preview__image-wrap"><img src="${previewDataUrl}" alt="${filename}"></div>`
+      : '';
+    this.drop.innerHTML = [
+      '<div class="dp-ai-drop-preview">',
+      `<div class="dp-ai-drop-preview__name">${filename}</div>`,
+      imageHtml,
+      '</div>',
+    ].join('');
     this.drop.classList.add('dp-ai-drop--filled');
   }
 
@@ -298,7 +289,7 @@ export class FileDropzoneController {
     this.log('bind:elements_resolved', this.describeResolvedElements());
     this.uiDebug('bind_success', this.describeResolvedElements());
 
-    this.defaultDropNodes = Array.from(this.drop.childNodes).map((node) => node.cloneNode(true));
+    this.defaultDropHtml = this.drop.innerHTML;
     this.drop.tabIndex = 0;
     this.drop.setAttribute('role', 'button');
     this.drop.setAttribute('aria-label', this.title);

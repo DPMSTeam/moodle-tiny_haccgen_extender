@@ -28,51 +28,52 @@ defined('MOODLE_INTERNAL') || die();
 global $CFG;
 require_once($CFG->dirroot . '/lib/adminlib.php');
 
-if ($ADMIN->fulltree) {
-    // IMPORTANT: Do NOT call $ADMIN->add(...) in a Tiny subplugin settings.php.
-    // tiny_haccgen_extender will load this file and add $settings for you.
+if ($hassiteconfig) {
+    // Tiny subplugin loader picks up $settings from this file.
     $settings = new admin_settingpage(
         'tiny_haccgen_extender_settings',
         new lang_string('settings', 'tiny_haccgen_extender')
     );
 
-    $settings->add(new admin_setting_configtext(
-        'tiny_haccgen_extender/endpointurl',
-        get_string('setting_endpointurl', 'tiny_haccgen_extender'),
-        get_string('setting_endpointurl_desc', 'tiny_haccgen_extender'),
-        '',
-        PARAM_URL
-    ));
+    if ($ADMIN->fulltree) {
+        $settings->add(new admin_setting_configtext(
+            'tiny_haccgen_extender/endpointurl',
+            get_string('setting_endpointurl', 'tiny_haccgen_extender'),
+            get_string('setting_endpointurl_desc', 'tiny_haccgen_extender'),
+            '',
+            PARAM_URL
+        ));
 
-    $settings->add(new admin_setting_heading(
-        'tiny_haccgen_extender/subscription_credentials_info',
-        get_string('setting_subscription_credentials_heading', 'tiny_haccgen_extender'),
-        get_string('setting_subscription_credentials_intro', 'tiny_haccgen_extender')
-    ));
+        $settings->add(new admin_setting_heading(
+            'tiny_haccgen_extender/subscription_credentials_info',
+            get_string('setting_subscription_credentials_heading', 'tiny_haccgen_extender'),
+            get_string('setting_subscription_credentials_intro', 'tiny_haccgen_extender')
+        ));
 
-    // Subscription Manager client credentials (required when endpoint is Subscription Manager AI).
-    $settings->add(new admin_setting_configtext(
-        'tiny_haccgen_extender/subscription_api_key',
-        get_string('setting_subscription_api_key', 'tiny_haccgen_extender'),
-        get_string('setting_subscription_api_key_desc', 'tiny_haccgen_extender'),
-        '',
-        PARAM_TEXT
-    ));
+        // Subscription Manager client credentials (required when endpoint is Subscription Manager AI).
+        $settings->add(new admin_setting_configtext(
+            'tiny_haccgen_extender/subscription_api_key',
+            get_string('setting_subscription_api_key', 'tiny_haccgen_extender'),
+            get_string('setting_subscription_api_key_desc', 'tiny_haccgen_extender'),
+            '',
+            PARAM_TEXT
+        ));
 
-    $settings->add(new admin_setting_configpasswordunmask(
-        'tiny_haccgen_extender/subscription_api_secret',
-        get_string('setting_subscription_api_secret', 'tiny_haccgen_extender'),
-        get_string('setting_subscription_api_secret_desc', 'tiny_haccgen_extender'),
-        ''
-    ));
+        $settings->add(new admin_setting_configpasswordunmask(
+            'tiny_haccgen_extender/subscription_api_secret',
+            get_string('setting_subscription_api_secret', 'tiny_haccgen_extender'),
+            get_string('setting_subscription_api_secret_desc', 'tiny_haccgen_extender'),
+            ''
+        ));
 
-    $settings->add(new \tiny_haccgen_extender\local\admin_setting_subscription_usage_summary());
+        $settings->add(new \tiny_haccgen_extender\local\admin_setting_subscription_usage_summary());
 
-    $settings->add(new admin_setting_configtext(
-        'tiny_haccgen_extender/timeout',
-        get_string('setting_timeout', 'tiny_haccgen_extender'),
-        get_string('setting_timeout_desc', 'tiny_haccgen_extender'),
-        '660',
-        PARAM_INT
-    ));
+        $settings->add(new admin_setting_configtext(
+            'tiny_haccgen_extender/timeout',
+            get_string('setting_timeout', 'tiny_haccgen_extender'),
+            get_string('setting_timeout_desc', 'tiny_haccgen_extender'),
+            '660',
+            PARAM_INT
+        ));
+    }
 }

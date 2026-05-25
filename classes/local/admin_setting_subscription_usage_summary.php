@@ -42,15 +42,19 @@ class admin_setting_subscription_usage_summary extends \admin_setting {
             get_string('setting_subscription_usage_desc', 'tiny_haccgen_extender'),
             ''
         );
+        $this->nosave = true;
     }
 
     /**
      * This setting is display-only; nothing is stored in config.
      *
-     * @return null
+     * Return a non-null value so Moodle upgrade settings does not treat this
+     * display-only row as an unresolved "new setting".
+     *
+     * @return string
      */
     public function get_setting() {
-        return null;
+        return '';
     }
 
     /**

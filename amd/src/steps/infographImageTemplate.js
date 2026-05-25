@@ -51,9 +51,9 @@ export const buildInfographImageGenerationTemplateConfig = async ({
   const purposeInfographLabel = await getString('purpose_infograph_image_generation_label', component);
   const purposeInfographDesc = await getString('purpose_infograph_image_generation_desc', component);
   const fieldSize = await getString('field_size', component);
-  const fieldDensity = await getString('field_density', component);
-  const optionMedium = await getString('option_medium', component);
-  const optionHigh = await getString('option_high', component);
+  const fieldInfographLength = await getString('field_infograph_length', component);
+  const optionLong = await getString('option_long', component);
+  const optionSummarize = await getString('option_summarize', component);
   const fieldPrompt = await getString('field_prompt', component);
   const placeholderInfographPrompt = await getString('placeholder_infograph_prompt', component);
   const errPromptRequired = await getString('err_prompt_required', component);
@@ -69,13 +69,10 @@ export const buildInfographImageGenerationTemplateConfig = async ({
   }
   const headerHtml = headerRender.html;
 
-  // Your requested sizes
   const sizeItems = [
-    { value: '1:1 (1024 x 1024)', text: '1:1 (1024 x 1024)' },
-    { value: '4:3 (896 x 1280)', text: '4:3 (896 x 1280)' },
-    { value: '4:3 (1280 x 896)', text: '4:3 (1280 x 896)' },
-    { value: '9:16 (768 x 1408)', text: '9:16 (768 x 1408)' },
-    { value: '16:9 (1408 x 768)', text: '16:9 (1408 x 768)' },
+    { value: '16:9_1408x768', text: 'Landscape (16:9)' },
+    { value: '9:16_768x1408', text: 'Portrait (9:16)' },
+    { value: '1:1_1024x1024', text: 'Square (1:1)' },
   ];
 
   return {
@@ -105,14 +102,13 @@ export const buildInfographImageGenerationTemplateConfig = async ({
           items: sizeItems,
         },
 
-        // optional: “density” like your defs already mention
         {
           type: 'selectbox',
-          name: 'density',
-          label: fieldDensity,
+          name: 'infographlength',
+          label: fieldInfographLength,
           items: [
-            { value: 'medium', text: optionMedium },
-            { value: 'high', text: optionHigh },
+            { value: 'long', text: optionLong },
+            { value: 'summarize', text: optionSummarize },
           ],
         },
         {
@@ -125,8 +121,8 @@ export const buildInfographImageGenerationTemplateConfig = async ({
     },
 
     initialData: {
-      size: '1:1 (1024 x 1024)',
-      density: 'medium',
+      size: '16:9_1408x768',
+      infographlength: 'long',
       prompt: (selectionText || '').trim(),
     },
 
@@ -155,18 +151,23 @@ export const buildInfographImageGenerationTemplateConfig = async ({
       const removeLoadingOverlay = showLoadingOverlay(api, generatingMsg);
 
       try {
+        const infographMode = data.infographlength === 'summarize' ? 'summarize' : 'long';
+        const promptToSend = infographMode === 'summarize'
+          ? `Summarize the following content into a concise infographic with clear
+           visual distinction between sections, headings,
+            and key points.\n\nContent:\n${inputText}`
+          : inputText;
         const optionsjson = JSON.stringify(
           {
             size: data.size,
-            density: data.density,
-            // keep these stable so backend can route correctly
             style: 'infographic',
+            infograph_mode: infographMode,
           },
           null,
           2
         );
 
-        const resp = await makeRequest('infograph_image_generation', inputText, optionsjson);
+        const resp = await makeRequest('infograph_image_generation', promptToSend, optionsjson);
 
         if (resp.code !== 200) {
           removeLoadingOverlay();

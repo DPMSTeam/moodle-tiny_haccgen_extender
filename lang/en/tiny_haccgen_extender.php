@@ -19,7 +19,7 @@
  *
  * @package tiny_haccgen_extender
  * @copyright 2026, Dynamic Pixel
- * @author Aman Das
+ *
  * @license http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
@@ -33,7 +33,7 @@ $string['btn_copy'] = 'Copy';
 $string['btn_insert_below'] = 'Insert below';
 $string['btn_replace_selection'] = 'Replace selection';
 $string['btn_run'] = 'Run';
-$string['button_open'] = 'Haccgen';
+$string['button_open'] = 'HACC Gen Extender';
 $string['cachedef_videogen_options'] = 'Video generation options cache';
 $string['err_bad_options'] = 'Options must be valid JSON.';
 $string['err_avatar_options_load_failed'] = 'Failed to load avatar options.';
@@ -58,6 +58,7 @@ $string['field_aspect_ratio'] = 'Aspect ratio';
 $string['field_density'] = 'Density';
 $string['field_font'] = 'Font';
 $string['field_gender'] = 'Gender';
+$string['field_infograph_length'] = 'Infograph mode';
 $string['field_language'] = 'Language';
 $string['field_language_type'] = 'Language type';
 $string['field_max_words'] = 'Maximum amount of words';
@@ -76,11 +77,11 @@ $string['field_video_style_id'] = 'Video style ID';
 $string['field_voice'] = 'Voice';
 $string['generating'] = 'Generating...';
 $string['generation_time_label'] = 'Generated in';
-$string['haccgen_extender:use'] = 'Use Haccgen extender in Tiny editor';
+$string['haccgen_extender:use'] = 'Use HACC Gen extender in Tiny editor';
 $string['loading_opening_tool'] = 'Opening…';
-$string['menu_open'] = 'Haccgen';
-$string['menu_tools'] = 'Haccgen tools';
-$string['modal_title'] = 'Haccgen extender';
+$string['menu_open'] = 'HACC Gen';
+$string['menu_tools'] = 'HACC Gen tools';
+$string['modal_title'] = 'HACC Gen extender';
 $string['no'] = 'No';
 $string['option_female'] = 'Female';
 $string['option_high'] = 'High';
@@ -88,9 +89,12 @@ $string['option_keep_language_type'] = 'Keep language type';
 $string['option_male'] = 'Male';
 $string['option_medium'] = 'Medium';
 $string['option_no_limit'] = 'No limit';
+$string['option_long'] = 'Long';
+$string['option_summarize'] = 'Summarize';
 $string['option_simple_language'] = 'Simple language';
 $string['option_technical_language'] = 'Technical language';
 $string['placeholder_create_audio_prompt'] = 'Paste or type the text you want to convert to audio (or select text before opening).';
+$string['placeholder_create_scenario_prompt'] = 'Describe the context and requirements for the scenario you want to generate.';
 $string['placeholder_detailed_description_prompt'] = 'Paste or type the text you want to expand (or select text before opening).';
 $string['placeholder_avatar_script'] = 'Example: Welcome! In this lesson we will cover Agile basics. We will start with Scrum roles, then events, then artifacts.';
 $string['placeholder_image_generation_prompt'] = 'Describe the image you want to generate...';
@@ -101,15 +105,18 @@ $string['placeholder_summarize_prompt'] = 'Paste or type the text you want to su
 $string['placeholder_text_recognition_prompt'] = 'E.g. Extract all text exactly as-is, preserve line breaks.';
 $string['placeholder_translate_prompt'] = 'Paste or type the text you want to translate (or select text before opening).';
 $string['placeholder_video_prompt'] = 'Describe the video you want to create...';
-$string['pluginname'] = 'Haccgen extender';
-$string['privacy:metadata'] = 'The Haccgen extender plugin does not store any personal data.';
+$string['pluginname'] = 'HACC Gen extender';
+$string['privacy:metadata'] = 'The HACC Gen extender plugin does not store any personal data.';
 $string['privacy:metadata:external'] = 'The plugin sends data to external AI and subscription services to generate suggestions and validate service access.';
 $string['privacy:metadata:external:userid'] = 'The ID of the user making the request.';
 $string['privacy:metadata:external:userinput'] = 'Selected editor text and request inputs provided by the user, including remote media URL input when used.';
 $string['purpose_avatar_generation_desc'] = 'Generate an avatar from a short description.';
 $string['purpose_avatar_generation_label'] = 'Avatar generation';
+$string['avatar_gallery_link'] = 'Browse avatars gallery (preview all avatars)';
 $string['purpose_create_audio_desc'] = 'Turn selected text into spoken audio.';
 $string['purpose_create_audio_label'] = 'Create audio';
+$string['purpose_create_scenario_desc'] = 'Generate a textual scenario from your input context.';
+$string['purpose_create_scenario_label'] = 'Create scenario';
 $string['purpose_detailed_description_desc'] = 'Expand into a clearer, richer explanation.';
 $string['purpose_detailed_description_label'] = 'Detailed description';
 $string['purpose_image_description_desc'] = 'Describe what is happening in an image.';
@@ -126,7 +133,7 @@ $string['purpose_translate_desc'] = 'Convert content into another language.';
 $string['purpose_translate_label'] = 'Translate';
 $string['purpose_video_generation_desc'] = 'Generate a short video from text.';
 $string['purpose_video_generation_label'] = 'Video generation';
-$string['result_dialog_title'] = 'Haccgen suggestion';
+$string['result_dialog_title'] = 'HACC Gen suggestion';
 $string['result_shown_in_label'] = 'Result shown in';
 $string['select_purpose_to_load_templates'] = 'Select a purpose to load templates.';
 $string['setting_allowedpurposes'] = 'Allowed purposes (comma-separated)';
@@ -140,8 +147,8 @@ $string['setting_subscription_api_secret_desc'] = 'Paste the API secret from the
 $string['setting_subscription_credentials_heading'] = 'Where to get API credentials';
 $string['setting_subscription_credentials_intro'] = '<div>
     <p>
-        To use <strong>Haccgen extender</strong> with Subscription Manager, generate your
-        <strong>API key</strong> and <strong>API secret</strong> from the HACCGEN dashboard (same as for the main Haccgen plugin).
+        To use <strong>HACC Gen extender</strong> with Subscription Manager, generate your
+        <strong>API key</strong> and <strong>API secret</strong> from the HACC Gen dashboard (same as for the main HACC Gen plugin).
         For setup help, see the
         <a href="https://docs.google.com/document/d/1f31ttH_NXGp0Suc5JiqLrSkVYNOuoy4XnJb2px0oKUw/edit?usp=sharing" target="_blank" rel="noreferrer noopener">
            installation and setup tutorial
@@ -172,6 +179,8 @@ $string['template_english_us'] = 'English (US)';
 $string['template_executive_summary'] = 'Executive summary';
 $string['template_flat_style'] = 'Flat style';
 $string['template_hindi_india'] = 'Hindi (India)';
+$string['template_infograph_long'] = 'Long infographic';
+$string['template_infograph_summarize'] = 'Summarized infographic';
 $string['template_illustration'] = 'Illustration';
 $string['template_narration'] = 'Narration';
 $string['template_plain_text'] = 'Plain text';

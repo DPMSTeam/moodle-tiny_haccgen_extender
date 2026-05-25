@@ -30,8 +30,77 @@ import { showLoadingOverlay } from '../loadingOverlay';
 import { openResultDialog } from './resultDialog/resultDialog';
 import { resolveDraftItemId } from '../draftItemid';
 
-const OPT_CACHE_KEY = 'dp_ai_videogen_opts_v1';
+const OPT_CACHE_KEY = 'dp_ai_videogen_opts_v2';
 const OPT_CACHE_TTL_MS = 3 * 60 * 60 * 1000;
+const DEFAULT_VIDEOGEN_OPTIONS = {
+  language: [{ id: 'en', name: 'English' }],
+  voice_id: [{ id: '', name: 'Default (auto)' }],
+  fonts: [{ id: '', name: 'Default' }],
+  aspect_ratios: [
+    { id: '16:9', name: '16:9 (Landscape)' },
+    { id: '9:16', name: '9:16 (Portrait)' },
+    { id: '1:1', name: '1:1 (Square)' },
+  ],
+  output_format: [
+    { id: 'mp4', name: 'MP4' },
+    { id: 'webm', name: 'WebM' },
+  ],
+};
+
+const toArray = (v) => (Array.isArray(v) ? v : []);
+
+const normalizeSelectItems = (raw, keyAliases = []) => {
+  const normalized = [];
+  toArray(raw).forEach((item) => {
+    if (item === null || item === undefined) {
+      return;
+    }
+    if (typeof item === 'string' || typeof item === 'number') {
+      const value = String(item).trim();
+      if (value) {
+        normalized.push({ id: value, name: value });
+      }
+      return;
+    }
+    if (typeof item !== 'object') {
+      return;
+    }
+    const keys = ['id', 'value', ...keyAliases];
+    const id = keys
+      .map((k) => item[k])
+      .find((v) => typeof v === 'string' || typeof v === 'number');
+    const name = ['name', 'text', 'label', 'displayName', ...keyAliases]
+      .map((k) => item[k])
+      .find((v) => typeof v === 'string' || typeof v === 'number');
+    const value = (id !== undefined ? String(id) : '').trim();
+    const label = (name !== undefined ? String(name) : value).trim();
+    if (value) {
+      normalized.push({ id: value, name: label || value });
+    }
+  });
+  return normalized;
+};
+
+const sanitizeOptions = (raw) => {
+  const obj = raw && typeof raw === 'object' ? raw : {};
+  const language = normalizeSelectItems(obj.language, ['code', 'languageCode', 'lang']);
+  const voice = normalizeSelectItems(obj.voice_id, ['voiceId', 'voice_id']);
+  const fonts = normalizeSelectItems(obj.fonts, ['fontId', 'font_id', 'fontName']);
+  const aspect = normalizeSelectItems(obj.aspect_ratios, ['ratio', 'aspect']);
+  const format = normalizeSelectItems(obj.output_format, ['format', 'type']);
+  return {
+    language: language.length ? language : DEFAULT_VIDEOGEN_OPTIONS.language,
+    voice_id: voice.length ? voice : DEFAULT_VIDEOGEN_OPTIONS.voice_id,
+    fonts: fonts.length ? fonts : DEFAULT_VIDEOGEN_OPTIONS.fonts,
+    aspect_ratios: aspect.length ? aspect : DEFAULT_VIDEOGEN_OPTIONS.aspect_ratios,
+    output_format: format.length ? format : DEFAULT_VIDEOGEN_OPTIONS.output_format,
+  };
+};
+
+const hasMeaningfulOptions = (opts) =>
+  toArray(opts?.language).length > 0 ||
+  toArray(opts?.voice_id).length > 0 ||
+  toArray(opts?.fonts).length > 0;
 
 const readOptCache = () => {
   try {
@@ -43,7 +112,11 @@ const readOptCache = () => {
     if (!parsed?.expiresAt || parsed.expiresAt < Date.now()) {
       return null;
     }
-    return parsed.data || null;
+    if (!parsed.data || typeof parsed.data !== 'object') {
+      return null;
+    }
+    const sanitized = sanitizeOptions(parsed.data);
+    return hasMeaningfulOptions(sanitized) ? sanitized : null;
   } catch (e) {
     return null;
   }
@@ -74,7 +147,10 @@ const safeParse = (x) => {
   }
 };
 
-const toSelectItems = (arr) => (arr || []).map((o) => ({ value: o.id, text: o.name }));
+const toSelectItems = (arr) =>
+  toArray(arr)
+    .filter((o) => o && typeof o.id === 'string' && o.id !== '')
+    .map((o) => ({ value: o.id, text: o.name || o.id }));
 
 /**
  * Build modal config for video generation.
@@ -130,19 +206,25 @@ export const buildVideoGenerationTemplateConfig = async ({ editor, selectionText
         msg = JSON.stringify(resp.result);
       }
       await moodleAlert(title, msg);
-      opts = {};
+      opts = { ...DEFAULT_VIDEOGEN_OPTIONS };
     } else {
       const parsed = safeParse(resp.result);
+      let candidate = {};
       if (parsed && typeof parsed.outputText === 'string') {
-        opts = safeParse(parsed.outputText) || {};
+        candidate = safeParse(parsed.outputText) || {};
       } else if (parsed && typeof parsed.result === 'string') {
-        opts = safeParse(parsed.result) || {};
+        candidate = safeParse(parsed.result) || {};
       } else if (parsed && (Array.isArray(parsed.voice_id) || Array.isArray(parsed.language))) {
-        opts = parsed;
+        candidate = parsed;
       } else {
-        opts = parsed || {};
+        candidate = parsed || {};
       }
-      writeOptCache(opts);
+      opts = sanitizeOptions(candidate);
+      if (hasMeaningfulOptions(opts)) {
+        writeOptCache(opts);
+      } else {
+        opts = { ...DEFAULT_VIDEOGEN_OPTIONS };
+      }
     }
   }
 

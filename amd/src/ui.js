@@ -38,6 +38,7 @@ import { toAlertText } from './utils';
 import { buildVideoGenerationTemplateConfig } from './steps/videoGenerationTemplate';
 import {buildImageDescriptionTemplateConfig} from './steps/imageDescriptionTemplate';
 import {buildTextRecognitionTemplateConfig} from './steps/textRecognitionTemplate';
+import { openResultDialog } from './steps/resultDialog/resultDialog';
 import { showLoadingOverlay, showGlobalLoadingOverlay } from './loadingOverlay';
 const DEFAULT_PURPOSE_KEYS = [
   'summarize',
@@ -104,8 +105,8 @@ const PURPOSE_DEFS = [
     labelKey: 'purpose_infograph_image_generation_label',
     descriptionKey: 'purpose_infograph_image_generation_desc',
     templates: [
-      { id: 'clean', nameKey: 'template_clean_infographic', options: { style: 'infographic', density: 'medium' } },
-      { id: 'dense', nameKey: 'template_data_heavy', options: { style: 'infographic', density: 'high' } },
+      { id: 'long', nameKey: 'template_infograph_long', options: { style: 'infographic', infograph_mode: 'long' } },
+      { id: 'summarize', nameKey: 'template_infograph_summarize', options: { style: 'infographic', infograph_mode: 'summarize' } },
     ],
   },
   {
@@ -274,17 +275,21 @@ const attachStep1GalleryHandlers = (editor, loadingMsg, onPurposePicked) => {
         return;
       }
 
-      closeTopDialog();
-      const removeGlobalLoader = showGlobalLoadingOverlay(loadingMsg);
-      void (async () => {
-        try {
-          await onPurposePicked(purposeKey, removeGlobalLoader);
-        } catch (err) {
-          removeGlobalLoader();
-          const title = await getString('modal_title', component);
-          await moodleAlert(title, toAlertText(err));
-        }
-      })();
+      // Defer dialog close/open until current Tiny event dispatch completes.
+      // Closing synchronously here can produce "component must be in context" warnings.
+      window.setTimeout(() => {
+        closeTopDialog();
+        const removeGlobalLoader = showGlobalLoadingOverlay(loadingMsg);
+        void (async () => {
+          try {
+            await onPurposePicked(purposeKey, removeGlobalLoader);
+          } catch (err) {
+            removeGlobalLoader();
+            const title = await getString('modal_title', component);
+            await moodleAlert(title, toAlertText(err));
+          }
+        })();
+      }, 0);
     };
 
     gallery.addEventListener('click', gallery.__dpAiClickHandler);
@@ -412,7 +417,9 @@ const buildStep1Config = async (editor, purposeDefs) => {
 const buildStep2Config = async (editor, purposeDefs, selectionText, purposeKey, templateId, goBack) => {
   const title = await getString('modal_title', component);
   const fieldOptions = await getString('field_options', component);
-  const fieldPreview = await getString('field_preview', component);
+  const fieldPrompt = await getString('field_prompt', component);
+  const placeholderScenarioPrompt = await getString('placeholder_create_scenario_prompt', component);
+  const errPromptRequired = await getString('err_prompt_required', component);
   const btnRun = await getString('btn_run', component);
   const btnCancel = await getString('btn_cancel', component);
   const generatingMsg = await getString('generating', component);
@@ -424,7 +431,6 @@ const buildStep2Config = async (editor, purposeDefs, selectionText, purposeKey, 
   const purpose = findPurpose(purposeDefs, purposeKey) || purposeDefs[0];
   const template = findTemplate(purpose, templateId);
   const templateItems = (purpose.templates || []).map((t) => ({ value: t.id, text: t.name }));
-  const templatesFor = await getString('templates_for', component, purpose.label);
   const step2HeadHtml = await renderTemplateHtml('dialog-head', {
     title: purpose.label,
     subtitle: step2SelectTemplateHelp,
@@ -445,7 +451,6 @@ const buildStep2Config = async (editor, purposeDefs, selectionText, purposeKey, 
           type: 'bar',
           items: [
             { type: 'button', name: 'back', text: btnBack, buttonType: 'secondary' },
-            { type: 'label', label: templatesFor },
           ],
         },
         {
@@ -456,22 +461,22 @@ const buildStep2Config = async (editor, purposeDefs, selectionText, purposeKey, 
         },
         {
           type: 'textarea',
-          name: 'optionsjson',
-          label: fieldOptions,
-          placeholder: placeholderOptionsJson,
+          name: 'prompt',
+          label: fieldPrompt,
+          placeholder: placeholderScenarioPrompt,
         },
         {
           type: 'textarea',
-          name: 'preview',
-          label: fieldPreview,
-          disabled: true,
+          name: 'optionsjson',
+          label: fieldOptions,
+          placeholder: placeholderOptionsJson,
         },
       ],
     },
     initialData: {
       templateId: template?.id ?? '',
+      prompt: selectionText,
       optionsjson: JSON.stringify(template?.options ?? {}, null, 2),
-      preview: selectionText,
     },
     buttons: [
       { type: 'cancel', text: btnCancel },
@@ -497,11 +502,16 @@ const buildStep2Config = async (editor, purposeDefs, selectionText, purposeKey, 
       const data = api.getData();
       let removeLoadingOverlay = () => {};
       try {
+        const inputText = (data.prompt || '').trim();
+        if (!inputText) {
+          await moodleAlert(title, errPromptRequired);
+          return;
+        }
         await tryParseJsonOrThrow(data.optionsjson);
 
         removeLoadingOverlay = showLoadingOverlay(api, generatingMsg);
 
-        const resp = await makeRequest(purpose.key, selectionText, data.optionsjson);
+        const resp = await makeRequest(purpose.key, inputText, data.optionsjson);
 
         if (resp.code !== 200) {
           removeLoadingOverlay();
@@ -521,8 +531,12 @@ const buildStep2Config = async (editor, purposeDefs, selectionText, purposeKey, 
         if (typeof api.unblock === 'function') {
           api.unblock();
         }
-        editor.selection.setContent(resp.result);
         api.close();
+        await openResultDialog(editor, resp.result, {
+          purpose: purpose.key,
+          hasSelection: Boolean(selectionText && selectionText.trim().length),
+          goBack,
+        });
       } catch (e) {
         removeLoadingOverlay();
         if (typeof api.unblock === 'function') {
@@ -565,6 +579,13 @@ export const openModal = async (editor) => {
         removeGlobalLoader();
       }
       editor.windowManager.open(cfg);
+      if (cfg && typeof cfg.__dpAfterOpen === 'function') {
+        window.setTimeout(() => {
+          try {
+            cfg.__dpAfterOpen();
+          } catch (err) {}
+        }, 0);
+      }
     };
 
     try {

@@ -96,11 +96,9 @@ export const buildImageGenerationTemplateConfig = async ({
           name: 'size',
           label: fieldSize,
           items: [
-            { value: '1:1_1024x1024', text: '1:1 (1024 x 1024)' },
-            { value: '4:3_896x1280', text: '4:3 (896 x 1280)' },
-            { value: '4:3_1280x896', text: '4:3 (1280 x 896)' },
-            { value: '9:16_768x1408', text: '9:16 (768 x 1408)' },
-            { value: '16:9_1408x768', text: '16:9 (1408 x 768)' },
+            { value: '16:9_1408x768', text: 'Landscape (16:9)' },
+            { value: '9:16_768x1408', text: 'Portrait (9:16)' },
+            { value: '1:1_1024x1024', text: 'Square (1:1)' },
           ],
         },
       ],
@@ -108,7 +106,7 @@ export const buildImageGenerationTemplateConfig = async ({
 
     initialData: {
       prompt: selectionText || '',
-      size: '1:1_1024x1024',
+      size: '16:9_1408x768',
     },
 
     buttons: [

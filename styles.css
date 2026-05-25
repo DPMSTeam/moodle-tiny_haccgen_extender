@@ -326,6 +326,21 @@
     color: rgba(16, 42, 67, 0.78);
 }
 
+.tox .dp-ai-x-gallery-link {
+    margin: 0 0 10px;
+    font-size: 12.5px;
+}
+
+.tox .dp-ai-x-gallery-link a {
+    color: #0f6cbf;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.tox .dp-ai-x-gallery-link a:hover {
+    text-decoration: underline;
+}
+
 .tox .tox-dialog .tox-textarea,
 .tox .tox-dialog .tox-textfield {
     border-radius: 10px;
@@ -335,6 +350,13 @@
     min-height: 260px;
     font-size: 12.5px;
     line-height: 1.45;
+}
+
+/* Keep the prompt area stable when TinyMCE recalculates dialog layout on focus. */
+.tox .tox-dialog textarea.tox-textarea,
+.tox .tox-dialog .tox-textarea textarea,
+.tox .tox-dialog .tox-textarea:focus {
+    min-height: 260px !important;
 }
 
 /* Image/text recognition file picker */
@@ -359,11 +381,46 @@
     color: rgba(16, 42, 67, 0.78);
     user-select: none;
     cursor: pointer;
+    caret-color: transparent;
 }
 
 .tox .dp-ai-drop.is-over {
     border-color: rgba(15, 108, 191, 0.6);
     background: rgba(15, 108, 191, 0.085);
+}
+
+.tox .dp-ai-drop.dp-ai-drop--filled {
+    background: #fff;
+    border-color: rgba(16, 42, 67, 0.18);
+    color: #102a43;
+}
+
+.tox .dp-ai-drop-preview {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+}
+
+.tox .dp-ai-drop-preview__name {
+    font-size: 12.5px;
+    font-weight: 600;
+    color: #102a43;
+    text-align: center;
+}
+
+.tox .dp-ai-drop-preview__image-wrap {
+    max-width: 80%;
+    max-height: 180px;
+    display: flex;
+    justify-content: center;
+}
+
+.tox .dp-ai-drop-preview__image-wrap img {
+    max-width: 100%;
+    max-height: 180px;
+    object-fit: contain;
 }
 
 .tox .dp-ai-drop__hint {

@@ -29,7 +29,7 @@ use core\http_client;
  *
  * @package    tiny_haccgen_extender
  * @copyright 2026, Dynamic Pixel
- * @author Aman Das
+ *
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 final class videogen_options extends \external_api {

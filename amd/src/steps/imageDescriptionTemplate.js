@@ -29,6 +29,27 @@ import { makeRequest } from '../repository';
 import { component } from '../common';
 import { showLoadingOverlay } from '../loadingOverlay';
 import { openResultDialog } from './resultDialog/resultDialog';
+import { FileDropzoneController } from './fileDropzoneController';
+
+const pushUiDebugEvent = (event, payload = {}) => {
+  const entry = {
+    ts: new Date().toISOString(),
+    scope: 'image_description',
+    event,
+    payload,
+  };
+  try {
+    window.__haccgenExtenderDebugEvents = Array.isArray(window.__haccgenExtenderDebugEvents)
+      ? window.__haccgenExtenderDebugEvents
+      : [];
+    window.__haccgenExtenderDebugEvents.push(entry);
+    if (window.__haccgenExtenderDebugEvents.length > 300) {
+      window.__haccgenExtenderDebugEvents.splice(0, window.__haccgenExtenderDebugEvents.length - 300);
+    }
+  } catch (e) {
+    // Never break UX for debug.
+  }
+};
 
 const readFileAsDataUrl = (file, readFileErrorMessage) =>
   new Promise((resolve, reject) => {
@@ -103,6 +124,7 @@ export const buildImageDescriptionTemplateConfig = async ({ editor, selectionTex
   const logFile = (label, f) => {
     if (!f) {
       Log.debug(`[tiny_haccgen_extender:image_description] ${label}: <null>`);
+      pushUiDebugEvent('file_state', { label, hasFile: false });
       return;
     }
     Log.debug(`[tiny_haccgen_extender:image_description] ${label}`, {
@@ -111,6 +133,92 @@ export const buildImageDescriptionTemplateConfig = async ({ editor, selectionTex
       size: f.size,
       lastModified: f.lastModified,
     });
+    pushUiDebugEvent('file_state', {
+      label,
+      hasFile: true,
+      name: String(f.name || ''),
+      type: String(f.type || ''),
+      size: Number(f.size || 0),
+    });
+  };
+
+  const bindDropzone = (api = null, source = 'unknown') => {
+    pushUiDebugEvent('dialog_open', { source });
+
+    const getTopDialogEl = () => {
+      try {
+        const dialogs = document.querySelectorAll('.tox-dialog');
+        return dialogs && dialogs.length ? dialogs[dialogs.length - 1] : null;
+      } catch (e) {
+        return null;
+      }
+    };
+
+    const resolveRoot = () => {
+      const findWrap = (container) => {
+        if (!container || typeof container.querySelector !== 'function') {
+          return null;
+        }
+        return container.querySelector('[data-role="ai-dropzone-wrap"]')
+          || container.querySelector('#dp-ai-img-wrap');
+      };
+
+      const apiRoot = api && api.getEl ? api.getEl() : null;
+      const apiWrap = findWrap(apiRoot);
+      if (apiWrap) {
+        return apiWrap;
+      }
+
+      const apiDialog = apiRoot && typeof apiRoot.closest === 'function'
+        ? apiRoot.closest('.tox-dialog')
+        : null;
+      const apiDialogWrap = findWrap(apiDialog);
+      if (apiDialogWrap) {
+        return apiDialogWrap;
+      }
+
+      const topDialog = getTopDialogEl();
+      const topWrap = findWrap(topDialog);
+      if (topWrap) {
+        return topWrap;
+      }
+
+      return null;
+    };
+
+    let attempts = 0;
+    const maxAttempts = 40;
+    const bindWithRetry = () => {
+      attempts += 1;
+      const root = resolveRoot();
+      if (root) {
+        const controller = new FileDropzoneController({
+          root,
+          title,
+          errInvalidImageFile,
+          errDropImageFile,
+          errUploadImageFirst,
+          logPrefix: 'image_description',
+          onFileChanged: (file) => {
+            selectedFile = file || null;
+            logFile('controller file changed', selectedFile);
+          },
+        });
+        if (controller.bind()) {
+          Log.debug('[tiny_haccgen_extender:image_description] dropzone controller attached', { attempts, source });
+          pushUiDebugEvent('dropzone_bound', { attempts, source });
+          return;
+        }
+      }
+
+      if (attempts < maxAttempts) {
+        window.setTimeout(bindWithRetry, 100);
+        return;
+      }
+      Log.error('[tiny_haccgen_extender:image_description] missing required elements after retries; aborting bindings');
+    };
+
+    bindWithRetry();
   };
 
   return {
@@ -166,142 +274,9 @@ export const buildImageDescriptionTemplateConfig = async ({ editor, selectionTex
 
     onOpen: (api) => {
       Log.debug('[tiny_haccgen_extender:image_description] onOpen fired');
-
-      let root = api.getEl ? api.getEl() : null;
-      Log.debug('[tiny_haccgen_extender:image_description] api.getEl()', { hasRoot: !!root });
-
-      if (!root || !root.querySelector('#dp-ai-drop')) {
-        Log.debug('[tiny_haccgen_extender:image_description] root missing drop; falling back to document');
-        root = document;
-      }
-
-      const drop = root.querySelector('#dp-ai-drop');
-      const chooseBtn = root.querySelector('#dp-ai-choose');
-      const fileInput = root.querySelector('#dp-ai-file');
-      const fileRow = root.querySelector('#dp-ai-file-row');
-      const fileName = root.querySelector('#dp-ai-file-name');
-      const btnChange = root.querySelector('#dp-ai-change');
-      const btnClear = root.querySelector('#dp-ai-clear');
-
-      Log.debug('[tiny_haccgen_extender:image_description] elements found', {
-        drop: !!drop,
-        chooseBtn: !!chooseBtn,
-        fileInput: !!fileInput,
-        fileRow: !!fileRow,
-        fileName: !!fileName,
-        btnChange: !!btnChange,
-        btnClear: !!btnClear,
-      });
-
-      if (!drop || !chooseBtn || !fileInput || !fileRow || !fileName || !btnChange || !btnClear) {
-        Log.error('[tiny_haccgen_extender:image_description] missing required elements; aborting bindings');
-        return;
-      }
-
-      const isImage = (f) => !!(f && typeof f.type === 'string' && f.type.startsWith('image/'));
-
-      const setFile = (f) => {
-        selectedFile = f || null;
-        logFile('setFile selectedFile', selectedFile);
-
-        if (!selectedFile) {
-          fileRow.classList.add('dp-ai-hidden');
-          fileName.textContent = '';
-          return;
-        }
-        fileName.textContent = selectedFile.name;
-        fileRow.classList.remove('dp-ai-hidden');
-      };
-
-      const pickFile = () => {
-        Log.debug('[tiny_haccgen_extender:image_description] pickFile()');
-        fileInput.value = '';
-        fileInput.click();
-      };
-
-      drop.addEventListener('click', (e) => {
-        const t = e.target;
-        Log.debug('[tiny_haccgen_extender:image_description] drop click', { targetId: t?.id });
-
-        if (t && (t.id === 'dp-ai-choose' || t.id === 'dp-ai-change' || t.id === 'dp-ai-clear')) {
-          return;
-        }
-        pickFile();
-      });
-
-      drop.addEventListener('keydown', (e) => {
-        Log.debug('[tiny_haccgen_extender:image_description] drop keydown', { key: e.key });
-
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          pickFile();
-        }
-      });
-
-      chooseBtn.addEventListener('click', (e) => {
-        Log.debug('[tiny_haccgen_extender:image_description] chooseBtn click');
-        e.preventDefault();
-        pickFile();
-      });
-
-      fileInput.addEventListener('change', () => {
-        const f = fileInput.files && fileInput.files[0] ? fileInput.files[0] : null;
-        logFile('fileInput change file', f);
-
-        if (f && !isImage(f)) {
-          moodleAlert(title, errInvalidImageFile);
-          fileInput.value = '';
-          setFile(null);
-          return;
-        }
-        if (f) {
-          setFile(f);
-        } else {
-          setFile(null);
-        }
-      });
-
-      btnChange.addEventListener('click', (e) => {
-        Log.debug('[tiny_haccgen_extender:image_description] btnChange click');
-        e.preventDefault();
-        pickFile();
-      });
-
-      btnClear.addEventListener('click', (e) => {
-        Log.debug('[tiny_haccgen_extender:image_description] btnClear click');
-        e.preventDefault();
-        fileInput.value = '';
-        setFile(null);
-      });
-
-      drop.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        drop.classList.add('is-over');
-      });
-
-      drop.addEventListener('dragleave', () => {
-        drop.classList.remove('is-over');
-      });
-
-      drop.addEventListener('drop', (e) => {
-        e.preventDefault();
-        drop.classList.remove('is-over');
-
-        const f =
-          e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]
-            ? e.dataTransfer.files[0]
-            : null;
-
-        logFile('drop event file', f);
-
-        if (!f || !isImage(f)) {
-          moodleAlert(title, errDropImageFile);
-          return;
-        }
-
-        setFile(f);
-      });
+      bindDropzone(api, 'tiny_onOpen');
     },
+    __dpAfterOpen: () => bindDropzone(null, 'ui_after_open_fallback'),
 
     onSubmit: async (api) => {
       Log.debug('[tiny_haccgen_extender:image_description] onSubmit fired');
@@ -310,6 +285,10 @@ export const buildImageDescriptionTemplateConfig = async ({ editor, selectionTex
       const prompt = (data.prompt || '').trim();
 
       Log.debug('[tiny_haccgen_extender:image_description] submit data', {
+        promptLen: prompt.length,
+        hasSelectedFileVar: !!selectedFile,
+      });
+      pushUiDebugEvent('submit_start', {
         promptLen: prompt.length,
         hasSelectedFileVar: !!selectedFile,
       });
@@ -333,7 +312,7 @@ export const buildImageDescriptionTemplateConfig = async ({ editor, selectionTex
             Log.debug('[tiny_haccgen_extender:image_description] findFileInContainer no container', { label });
             return null;
           }
-          const input = container.querySelector('#dp-ai-file');
+          const input = container.querySelector('[data-role="ai-file"], #dp-ai-file');
           const found = input ? getFileFromInput(input) : null;
 
           Log.debug('[tiny_haccgen_extender:image_description] findFileInContainer', {
@@ -371,12 +350,14 @@ export const buildImageDescriptionTemplateConfig = async ({ editor, selectionTex
 
       if (!fileToUse) {
         Log.error('[tiny_haccgen_extender:image_description] no file found; showing alert');
+        pushUiDebugEvent('submit_blocked_no_file');
         await moodleAlert(title, errUploadImageFirst);
         return;
       }
 
       if (!prompt) {
         Log.error('[tiny_haccgen_extender:image_description] empty prompt; showing alert');
+        pushUiDebugEvent('submit_blocked_empty_prompt');
         await moodleAlert(title, errPromptRequiredOrKeep);
         return;
       }
@@ -390,6 +371,13 @@ export const buildImageDescriptionTemplateConfig = async ({ editor, selectionTex
 
         const b64 = dataUrlToBase64(dataUrl);
         Log.debug('[tiny_haccgen_extender:image_description] base64 length', { len: b64.length });
+        pushUiDebugEvent('submit_payload_ready', {
+          filename: String(fileToUse.name || ''),
+          mimetype: String(fileToUse.type || ''),
+          dataUrlLen: dataUrl.length,
+          b64Len: b64.length,
+          promptLen: prompt.length,
+        });
 
         if (!b64) {
           removeLoadingOverlay();
@@ -401,17 +389,13 @@ export const buildImageDescriptionTemplateConfig = async ({ editor, selectionTex
           return;
         }
 
-        const optionsjson = JSON.stringify(
-          {
-            image: {
-              filename: fileToUse.name,
-              mimetype: fileToUse.type,
-              content_base64: b64,
-            },
+        const optionsjson = JSON.stringify({
+          image: {
+            filename: fileToUse.name || 'image',
+            mimetype: fileToUse.type || 'application/octet-stream',
+            content_base64: b64,
           },
-          null,
-          2
-        );
+        });
 
         Log.debug('[tiny_haccgen_extender:image_description] makeRequest payload', {
           purpose: 'image_description',
@@ -423,6 +407,11 @@ export const buildImageDescriptionTemplateConfig = async ({ editor, selectionTex
         });
 
         const resp = await makeRequest('image_description', prompt, optionsjson);
+        pushUiDebugEvent('submit_response', {
+          code: resp?.code,
+          resultType: typeof resp?.result,
+          resultLen: typeof resp?.result === 'string' ? resp.result.length : 0,
+        });
 
         Log.debug('[tiny_haccgen_extender:image_description] makeRequest response', {
           code: resp?.code,
@@ -448,6 +437,7 @@ export const buildImageDescriptionTemplateConfig = async ({ editor, selectionTex
         api.close();
 
         Log.debug('[tiny_haccgen_extender:image_description] opening result dialog');
+        pushUiDebugEvent('open_result_dialog');
         await openResultDialog(editor, resp.result, {
           hasSelection: Boolean(selectionText?.trim()),
           purpose: 'image_description',
@@ -460,6 +450,9 @@ export const buildImageDescriptionTemplateConfig = async ({ editor, selectionTex
         Log.error('[tiny_haccgen_extender:image_description] exception', {
           message: e?.message,
           stack: e?.stack,
+        });
+        pushUiDebugEvent('submit_exception', {
+          message: e?.message || String(e),
         });
         await moodleAlert(title, e?.message || String(e));
       }

@@ -19,7 +19,6 @@
  *
  * @package tiny_haccgen_extender
  * @copyright 2026, Dynamic Pixel
- * @author Aman Das
  * @license http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
@@ -32,6 +31,7 @@ $capabilities = [
         'archetypes' => [
             'editingteacher' => CAP_ALLOW,
             'manager' => CAP_ALLOW,
+            'user' => CAP_ALLOW,
         ],
     ],
 ];

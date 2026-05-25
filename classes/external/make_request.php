@@ -28,7 +28,7 @@ use context_system;
  *
  * @package    tiny_haccgen_extender
  * @copyright 2026, Dynamic Pixel
- * @author Aman Das
+ *
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class make_request extends \external_api {
@@ -85,13 +85,33 @@ class make_request extends \external_api {
     }
 
     /**
-     * Logs a truncated debug snippet for this plugin (developer debugging only).
+     * Redacts sensitive keys before writing to the PHP error log.
+     *
+     * @param mixed $data Value to sanitize.
+     * @return mixed Sanitized copy.
+     */
+    private static function sanitize_log_data($data) {
+        if (!is_array($data)) {
+            return $data;
+        }
+        $copy = $data;
+        foreach (['api_secret', 'api_key'] as $key) {
+            if (!empty($copy[$key])) {
+                $copy[$key] = '[REDACTED]';
+            }
+        }
+        return $copy;
+    }
+
+    /**
+     * Logs a truncated snippet through Moodle debugging.
      *
      * @param string $label Log label.
      * @param mixed $data String or encodable value.
      */
     private static function tiny_haccgen_extender_log(string $label, $data): void {
         $max = 2000;
+        $data = self::sanitize_log_data($data);
         if (is_string($data)) {
             $snip = mb_substr($data, 0, $max);
         } else {
@@ -99,7 +119,7 @@ class make_request extends \external_api {
             $snip = mb_substr((string)$json, 0, $max);
         }
 
-        debugging("tiny_haccgen_extender {$label}: {$snip}", DEBUG_DEVELOPER);
+        debugging('[tiny_haccgen_extender] ' . $label . ': ' . $snip, DEBUG_DEVELOPER);
     }
 
     /**
@@ -146,12 +166,53 @@ class make_request extends \external_api {
         self::validate_context($ctx);
         require_capability('tiny/haccgen_extender:use', $ctx);
 
+        $isavataroptions = in_array($params['purpose'], ['avatar_generation_options', 'avatargen_options'], true);
+        $isvideooptions = in_array($params['purpose'], ['video_generation_options', 'videogen_options'], true);
+        $isoptionspurpose = $isavataroptions || $isvideooptions;
+        $optionsfallback = function() use ($isavataroptions): array {
+            if ($isavataroptions) {
+                return [
+                    'avatar_id' => [['id' => '__no_avatar__', 'name' => 'No avatars available']],
+                    'voice_id' => [['id' => '__no_voice__', 'name' => 'No voices available']],
+                    'video_style_id' => [
+                        ['id' => 'normal', 'name' => 'Normal'],
+                        ['id' => 'closeUp', 'name' => 'Close up'],
+                    ],
+                    'output_format' => [
+                        ['id' => 'mp4', 'name' => 'MP4'],
+                        ['id' => 'webm', 'name' => 'WebM'],
+                    ],
+                    'resolution' => [
+                        ['id' => '1280x720', 'name' => '720p (1280x720)'],
+                        ['id' => '1920x1080', 'name' => '1080p (1920x1080)'],
+                    ],
+                ];
+            }
+            return [
+                'language' => [['id' => 'en', 'name' => 'English']],
+                'voice_id' => [['id' => '__default_voice__', 'name' => 'Default (auto)']],
+                'fonts' => [['id' => '__default_font__', 'name' => 'Default']],
+                'aspect_ratios' => [
+                    ['id' => '16:9', 'name' => '16:9 (Landscape)'],
+                    ['id' => '9:16', 'name' => '9:16 (Portrait)'],
+                    ['id' => '1:1', 'name' => '1:1 (Square)'],
+                ],
+                'output_format' => [
+                    ['id' => 'mp4', 'name' => 'MP4'],
+                    ['id' => 'webm', 'name' => 'WebM'],
+                ],
+            ];
+        };
+
         $endpoint = (string) get_config('tiny_haccgen_extender', 'endpointurl');
         $subkey   = (string) get_config('tiny_haccgen_extender', 'subscription_api_key');
         $subsec   = (string) get_config('tiny_haccgen_extender', 'subscription_api_secret');
         $timeout = (int) (get_config('tiny_haccgen_extender', 'timeout') ?: 660);
 
         if (empty($endpoint)) {
+            if ($isoptionspurpose) {
+                return ['code' => 200, 'result' => json_encode($optionsfallback(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)];
+            }
             return [
                 'code' => 500,
                 'result' => json_encode(['message' => get_string('err_endpoint_not_configured', 'tiny_haccgen_extender')]),
@@ -161,6 +222,9 @@ class make_request extends \external_api {
         // If this is Subscription Manager AI endpoint, subscription credentials are mandatory (per-LMS unique secret).
         $issubscriptionmanagerai = (stripos($endpoint, '/local/subscription_manager/ai_endpoint.php') !== false);
         if ($issubscriptionmanagerai && (empty($subkey) || empty($subsec))) {
+            if ($isoptionspurpose) {
+                return ['code' => 200, 'result' => json_encode($optionsfallback(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)];
+            }
             return [
                 'code' => 500,
                 'result' => json_encode([
@@ -172,11 +236,17 @@ class make_request extends \external_api {
         $allowed = (string) get_config('tiny_haccgen_extender', 'allowedpurposes');
         $allowed = array_filter(array_map('trim', explode(',', $allowed)));
         if (!empty($allowed) && !in_array($params['purpose'], $allowed, true)) {
+            if ($isoptionspurpose) {
+                return ['code' => 200, 'result' => json_encode($optionsfallback(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)];
+            }
             return ['code' => 400, 'result' => json_encode(['message' => 'Purpose not allowed'])];
         }
 
         $options = json_decode($params['optionsjson'], true);
         if ($params['optionsjson'] !== '{}' && $options === null && json_last_error() !== JSON_ERROR_NONE) {
+            if ($isoptionspurpose) {
+                return ['code' => 200, 'result' => json_encode($optionsfallback(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)];
+            }
             return ['code' => 400, 'result' => json_encode(['message' => 'Invalid options JSON'])];
         }
         if (!is_array($options)) {
@@ -232,9 +302,13 @@ class make_request extends \external_api {
             $msg = (stripos($cerr, 'timeout') !== false)
                 ? 'Upstream request timed out (video generation can take several minutes).'
                 : 'Upstream request failed.';
+            if ($isoptionspurpose) {
+                return ['code' => 200, 'result' => json_encode($optionsfallback(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)];
+            }
             return ['code' => 502, 'result' => json_encode(['message' => $msg])];
         }
 
+        self::tiny_haccgen_extender_log('RESPONSE raw', $raw);
         $decoded = json_decode($raw, true);
         self::tiny_haccgen_extender_log('RESPONSE json_last_error', json_last_error_msg());
 
@@ -256,38 +330,41 @@ class make_request extends \external_api {
                 self::tiny_haccgen_extender_log('RESPONSE output_type', gettype($out));
             }
 
-            // If this is the options response, log counts of avatar/voice after parsing the JSON string.
-            if ($params['purpose'] === 'avatar_generation_options' && is_string($out)) {
-                $opts = json_decode($out, true);
-                if (is_array($opts)) {
-                    $videostylecount = isset($opts['video_style_id']) && is_array($opts['video_style_id'])
-                        ? count($opts['video_style_id'])
-                        : null;
-                    $outputformatcount = isset($opts['output_format']) && is_array($opts['output_format'])
-                        ? count($opts['output_format'])
-                        : null;
-                    self::tiny_haccgen_extender_log('OPTIONS counts', [
-                        'avatar_id' => isset($opts['avatar_id']) && is_array($opts['avatar_id'])
-                            ? count($opts['avatar_id']) : null,
-                        'voice_id'  => isset($opts['voice_id']) && is_array($opts['voice_id'])
-                            ? count($opts['voice_id']) : null,
-                        'style'     => $videostylecount,
-                        'format'    => $outputformatcount,
-                    ]);
-
-                    // Also log 3 samples to ensure IDs are present.
-                    self::tiny_haccgen_extender_log('OPTIONS samples', [
-                        'avatar_sample' => array_slice($opts['avatar_id'] ?? [], 0, 3),
-                        'voice_sample'  => array_slice($opts['voice_id'] ?? [], 0, 3),
-                    ]);
-                } else {
-                    self::tiny_haccgen_extender_log('OPTIONS parse_failed', json_last_error_msg());
-                }
-            }
+            $logoptionssummary = function(array $opts, string $purpose): void {
+                self::tiny_haccgen_extender_log('OPTIONS purpose', $purpose);
+                self::tiny_haccgen_extender_log('OPTIONS counts', [
+                    'avatar_id' => isset($opts['avatar_id']) && is_array($opts['avatar_id'])
+                        ? count($opts['avatar_id']) : null,
+                    'voice_id' => isset($opts['voice_id']) && is_array($opts['voice_id'])
+                        ? count($opts['voice_id']) : null,
+                    'video_style_id' => isset($opts['video_style_id']) && is_array($opts['video_style_id'])
+                        ? count($opts['video_style_id']) : null,
+                    'output_format' => isset($opts['output_format']) && is_array($opts['output_format'])
+                        ? count($opts['output_format']) : null,
+                    'resolution' => isset($opts['resolution']) && is_array($opts['resolution'])
+                        ? count($opts['resolution']) : null,
+                    'language' => isset($opts['language']) && is_array($opts['language'])
+                        ? count($opts['language']) : null,
+                    'fonts' => isset($opts['fonts']) && is_array($opts['fonts'])
+                        ? count($opts['fonts']) : null,
+                    'aspect_ratios' => isset($opts['aspect_ratios']) && is_array($opts['aspect_ratios'])
+                        ? count($opts['aspect_ratios']) : null,
+                ]);
+                self::tiny_haccgen_extender_log('OPTIONS samples', [
+                    'avatar_sample' => array_slice($opts['avatar_id'] ?? [], 0, 3),
+                    'voice_sample' => array_slice($opts['voice_id'] ?? [], 0, 3),
+                    'style_sample' => array_slice($opts['video_style_id'] ?? [], 0, 3),
+                    'format_sample' => array_slice($opts['output_format'] ?? [], 0, 3),
+                    'resolution_sample' => array_slice($opts['resolution'] ?? [], 0, 3),
+                    'language_sample' => array_slice($opts['language'] ?? [], 0, 3),
+                    'fonts_sample' => array_slice($opts['fonts'] ?? [], 0, 3),
+                    'aspect_sample' => array_slice($opts['aspect_ratios'] ?? [], 0, 3),
+                ]);
+            };
 
             // Error from upstream: pass through code and message.
             $err = $decoded['error'] ?? null;
-            if (!empty($err)) {
+            if (!empty($err) && !$isavataroptions && !$isvideooptions) {
                 $msg = is_array($err) && isset($err['message']) ? (string) $err['message'] : (string) $err;
                 $code = (int) ($decoded['code'] ?? 500);
                 if ($code < 100 || $code > 599) {
@@ -301,6 +378,141 @@ class make_request extends \external_api {
                 $code = 200;
             }
 
+            if ($isavataroptions || $isvideooptions) {
+                $opts = null;
+                if (is_array($out)) {
+                    $opts = $out;
+                } else if (is_string($out) && trim($out) !== '') {
+                    $tmp = json_decode($out, true);
+                    if (is_array($tmp)) {
+                        $opts = $tmp;
+                    }
+                }
+
+                if (!is_array($opts)) {
+                    $fallback = $decoded['result'] ?? $decoded['outputText'] ?? null;
+                    if (is_array($fallback)) {
+                        $opts = $fallback;
+                    } else if (is_string($fallback) && trim($fallback) !== '') {
+                        $tmp = json_decode($fallback, true);
+                        if (is_array($tmp)) {
+                            $opts = $tmp;
+                        }
+                    }
+                }
+
+                if (!is_array($opts)) {
+                    self::tiny_haccgen_extender_log('OPTIONS fallback', 'unable to parse upstream options payload');
+                    $opts = $optionsfallback();
+                }
+
+                $normalizelist = function($list, array $idkeys = ['id', 'value'], array $namekeys = ['name', 'text', 'label']) {
+                    $outlist = [];
+                    if (!is_array($list)) {
+                        return $outlist;
+                    }
+                    foreach ($list as $item) {
+                        if (is_string($item) || is_numeric($item)) {
+                            $v = trim((string)$item);
+                            if ($v !== '') {
+                                $outlist[] = ['id' => $v, 'name' => $v];
+                            }
+                            continue;
+                        }
+                        if (!is_array($item)) {
+                            continue;
+                        }
+                        $id = '';
+                        foreach ($idkeys as $k) {
+                            if (isset($item[$k]) && (is_string($item[$k]) || is_numeric($item[$k]))) {
+                                $id = trim((string)$item[$k]);
+                                if ($id !== '') {
+                                    break;
+                                }
+                            }
+                        }
+                        if ($id === '') {
+                            continue;
+                        }
+                        $name = '';
+                        foreach ($namekeys as $k) {
+                            if (isset($item[$k]) && (is_string($item[$k]) || is_numeric($item[$k]))) {
+                                $name = trim((string)$item[$k]);
+                                if ($name !== '') {
+                                    break;
+                                }
+                            }
+                        }
+                        $outlist[] = ['id' => $id, 'name' => ($name !== '' ? $name : $id)];
+                    }
+                    return $outlist;
+                };
+
+                if ($isavataroptions) {
+                    $opts['avatar_id'] = $normalizelist($opts['avatar_id'] ?? [], ['id', 'avatar_id', 'value'], ['name', 'avatar_name', 'text', 'label']);
+                    $opts['voice_id'] = $normalizelist($opts['voice_id'] ?? [], ['id', 'voice_id', 'voiceId', 'value'], ['name', 'text', 'label']);
+                    $opts['video_style_id'] = $normalizelist($opts['video_style_id'] ?? [], ['id', 'value'], ['name', 'text', 'label']);
+                    $opts['output_format'] = $normalizelist($opts['output_format'] ?? [], ['id', 'value'], ['name', 'text', 'label']);
+                    $opts['resolution'] = $normalizelist($opts['resolution'] ?? [], ['id', 'value'], ['name', 'text', 'label']);
+
+                    if (empty($opts['video_style_id'])) {
+                        $opts['video_style_id'] = [
+                            ['id' => 'normal', 'name' => 'Normal'],
+                            ['id' => 'closeUp', 'name' => 'Close up'],
+                        ];
+                    }
+                    if (empty($opts['output_format'])) {
+                        $opts['output_format'] = [
+                            ['id' => 'mp4', 'name' => 'MP4'],
+                            ['id' => 'webm', 'name' => 'WebM'],
+                        ];
+                    }
+                    if (empty($opts['resolution'])) {
+                        $opts['resolution'] = [
+                            ['id' => '1280x720', 'name' => '720p (1280x720)'],
+                            ['id' => '1920x1080', 'name' => '1080p (1920x1080)'],
+                        ];
+                    }
+                }
+
+                if ($isvideooptions) {
+                    $opts['language'] = $normalizelist($opts['language'] ?? [], ['id', 'code', 'languageCode', 'value'], ['name', 'languageName', 'text', 'label']);
+                    $opts['voice_id'] = $normalizelist($opts['voice_id'] ?? [], ['id', 'voice_id', 'voiceId', 'value'], ['name', 'displayName', 'text', 'label']);
+                    $opts['fonts'] = $normalizelist($opts['fonts'] ?? [], ['id', 'font_id', 'fontId', 'fontName', 'value'], ['name', 'displayName', 'fontName', 'text', 'label']);
+                    $opts['aspect_ratios'] = $normalizelist($opts['aspect_ratios'] ?? [], ['id', 'ratio', 'value'], ['name', 'text', 'label']);
+                    $opts['output_format'] = $normalizelist($opts['output_format'] ?? [], ['id', 'format', 'value'], ['name', 'text', 'label']);
+
+                    if (empty($opts['language'])) {
+                        $opts['language'] = [['id' => 'en', 'name' => 'English']];
+                    }
+                    if (empty($opts['voice_id'])) {
+                        $opts['voice_id'] = [['id' => '__default_voice__', 'name' => 'Default (auto)']];
+                    }
+                    if (empty($opts['fonts'])) {
+                        $opts['fonts'] = [['id' => '__default_font__', 'name' => 'Default']];
+                    }
+                    if (empty($opts['aspect_ratios'])) {
+                        $opts['aspect_ratios'] = [
+                            ['id' => '16:9', 'name' => '16:9 (Landscape)'],
+                            ['id' => '9:16', 'name' => '9:16 (Portrait)'],
+                            ['id' => '1:1', 'name' => '1:1 (Square)'],
+                        ];
+                    }
+                    if (empty($opts['output_format'])) {
+                        $opts['output_format'] = [
+                            ['id' => 'mp4', 'name' => 'MP4'],
+                            ['id' => 'webm', 'name' => 'WebM'],
+                        ];
+                    }
+                }
+                $logoptionssummary($opts, $params['purpose']);
+
+                return [
+                    'code' => $code,
+                    'result' => json_encode($opts, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+                ];
+            }
+
             // When response includes media (e.g. image_generation), pass full response so frontend gets media[].url.
             $media = $decoded['media'] ?? null;
             if (is_array($media) && count($media) > 0) {
@@ -309,6 +521,13 @@ class make_request extends \external_api {
                 $result = is_string($out) ? $out : (string) $raw;
             }
             return ['code' => $code, 'result' => $result];
+        }
+
+        if (in_array($params['purpose'], ['avatar_generation_options', 'avatargen_options'], true)) {
+            return ['code' => 200, 'result' => json_encode($optionsfallback(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)];
+        }
+        if (in_array($params['purpose'], ['video_generation_options', 'videogen_options'], true)) {
+            return ['code' => 200, 'result' => json_encode($optionsfallback(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)];
         }
 
         return ['code' => 200, 'result' => (string) $raw];

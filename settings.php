@@ -19,7 +19,7 @@
  *
  * @package tiny_haccgen_extender
  * @copyright 2026, Dynamic Pixel
- * @author Aman Das
+ *
  * @license http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
@@ -74,13 +74,5 @@ if ($ADMIN->fulltree) {
         get_string('setting_timeout_desc', 'tiny_haccgen_extender'),
         '660',
         PARAM_INT
-    ));
-
-    $settings->add(new admin_setting_configtext(
-        'tiny_haccgen_extender/allowedpurposes',
-        get_string('setting_allowedpurposes', 'tiny_haccgen_extender'),
-        get_string('setting_allowedpurposes_desc', 'tiny_haccgen_extender'),
-        '',
-        PARAM_RAW_TRIMMED
     ));
 }

@@ -24,7 +24,7 @@ use core_privacy\local\metadata\provider as metadata_provider;
  *
  * @package tiny_haccgen_extender
  * @copyright 2026, Dynamic Pixel
- * @author Aman Das
+ *
  * @license http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class provider implements metadata_provider {

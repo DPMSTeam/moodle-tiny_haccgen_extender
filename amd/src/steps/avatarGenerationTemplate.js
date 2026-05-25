@@ -30,8 +30,10 @@ import { showLoadingOverlay } from '../loadingOverlay';
 import { openResultDialog } from './resultDialog/resultDialog';
 import { resolveDraftItemId } from '../draftItemid';
 
-const OPT_CACHE_KEY = 'dp_ai_heygen_opts_v1';
+const OPT_CACHE_KEY = 'dp_ai_heygen_opts_v2';
 const OPT_CACHE_TTL_MS = 3 * 60 * 60 * 1000; // 3 hours
+const PUBLIC_AVATARS_GALLERY_URL =
+  'https://dev.dynamicpixel.co.in/test4/local/subscription_manager/public_avatars.php';
 
 const readOptCache = () => {
   try {
@@ -104,6 +106,7 @@ export const buildAvatarGenerationTemplateConfig = async ({ editor, selectionTex
   const placeholderAvatarScript = await getString('placeholder_avatar_script', component);
   const errAvatarOptionsLoadFailed = await getString('err_avatar_options_load_failed', component);
   const errScriptRequired = await getString('err_script_required', component);
+  const avatarGalleryLinkText = await getString('avatar_gallery_link', component);
   const headerRender = await Templates.renderForPromise(
     'tiny_haccgen_extender/components/dialog-head',
     {
@@ -115,6 +118,18 @@ export const buildAvatarGenerationTemplateConfig = async ({ editor, selectionTex
     Templates.runTemplateJS(headerRender.js);
   }
   const headerHtml = headerRender.html;
+
+  const galleryLinkRender = await Templates.renderForPromise(
+    'tiny_haccgen_extender/components/avatar-gallery-link',
+    {
+      url: PUBLIC_AVATARS_GALLERY_URL,
+      linktext: avatarGalleryLinkText,
+    }
+  );
+  if (galleryLinkRender.js) {
+    Templates.runTemplateJS(galleryLinkRender.js);
+  }
+  const galleryLinkHtml = galleryLinkRender.html;
 
   // 1) Load available options from backend (avatar_id, voice_id, video_style_id, output_format).
   let opts = readOptCache();
@@ -170,6 +185,11 @@ export const buildAvatarGenerationTemplateConfig = async ({ editor, selectionTex
           type: 'htmlpanel',
           name: 'avatarHead',
           html: headerHtml,
+        },
+        {
+          type: 'htmlpanel',
+          name: 'avatarGalleryLink',
+          html: galleryLinkHtml,
         },
 
         {

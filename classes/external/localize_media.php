@@ -30,7 +30,7 @@ use context_user;
  *
  * @package    tiny_haccgen_extender
  * @copyright 2026, Dynamic Pixel
- * @author Aman Das
+ *
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 final class localize_media extends \external_api {

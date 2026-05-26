@@ -48,13 +48,13 @@ class admin_setting_subscription_usage_summary extends \admin_setting {
     /**
      * This setting is display-only; nothing is stored in config.
      *
-     * Return a non-null value so Moodle upgrade settings does not treat this
-     * display-only row as an unresolved "new setting".
+     * Return a non-empty sentinel so Moodle upgrade settings does not treat
+     * this display-only row as an unresolved "new setting".
      *
      * @return string
      */
     public function get_setting() {
-        return '';
+        return 'display_only';
     }
 
     /**

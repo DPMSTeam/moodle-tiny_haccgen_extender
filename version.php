@@ -21,14 +21,14 @@
  *
  * @package tiny_haccgen_extender
  * @copyright 2026, Dynamic Pixel
- *
+ * @author Aman Das
  * @license http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
 defined('MOODLE_INTERNAL') || die();
 
 $plugin->component = 'tiny_haccgen_extender';
-$plugin->version   = 2026041003;
+$plugin->version   = 2026072100;
 $plugin->requires  = 2022112800;
 $plugin->maturity  = MATURITY_STABLE;
-$plugin->release   = '1.2';
+$plugin->release   = '1.3';

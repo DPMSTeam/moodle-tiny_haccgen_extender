@@ -25,17 +25,26 @@ import {getButtonImage} from 'editor_tiny/utils';
 import {get_string as getString}  from 'core/str';
 import {component, openButtonName, openMenuItemName, selectionButtonName, icon} from './common';
 import {openModal} from './ui';
+import {saveSelectionBookmark, getInteractiveWrapperFromSelection} from './steps/resultDialog/editorInsert';
+import {openInteractiveHtmlEditor} from './steps/interactiveHtmlEditor';
+
+const openExtenderModal = (editor, opts) => {
+    saveSelectionBookmark(editor);
+    return openModal(editor, opts);
+};
 
 export const getSetup = async() => {
     const [
         buttonTitle,
         menuTitle,
         selectionTitle,
+        editInteractiveTitle,
         buttonImage,
     ] = await Promise.all([
         getString('button_open', component),
         getString('menu_open', component),
         getString('button_open', component), // or create a separate lang string for selection
+        getString('button_edit_interactive', component),
         getButtonImage('icon', component),
     ]);
 
@@ -46,14 +55,14 @@ export const getSetup = async() => {
         editor.ui.registry.addButton(openButtonName, {
             icon,
             tooltip: buttonTitle,
-            onAction: () => openModal(editor),
+            onAction: () => openExtenderModal(editor),
         });
 
         // Menu item
         editor.ui.registry.addMenuItem(openMenuItemName, {
             icon,
             text: menuTitle,
-            onAction: () => openModal(editor),
+            onAction: () => openExtenderModal(editor),
         });
 
         // NEW: Selection-only button (Quickbars)
@@ -77,8 +86,51 @@ export const getSetup = async() => {
             onAction: () => {
                 const selectedText = editor.selection.getContent({format: 'text'}).trim();
                 // Pass selection to your modal (recommended)
-                openModal(editor, {selectedText});
+                openExtenderModal(editor, {selectedText});
             },
+        });
+
+        const editInteractiveButtonName = `${component}_edit_interactive`;
+        editor.ui.registry.addButton(editInteractiveButtonName, {
+            icon,
+            tooltip: editInteractiveTitle,
+            onAction: () => {
+                const wrap = getInteractiveWrapperFromSelection(editor);
+                if (!wrap) {
+                    return;
+                }
+                openInteractiveHtmlEditor(editor, {
+                    html: wrap.outerHTML,
+                    replaceNode: wrap,
+                });
+            },
+        });
+
+        editor.ui.registry.addContextToolbar(`${component}_interactive`, {
+            predicate: (node) => {
+                if (!node || node.nodeType !== 1) {
+                    return false;
+                }
+                if (node.classList && node.classList.contains('dp-ai-interactive')) {
+                    return true;
+                }
+                return Boolean(node.closest && node.closest('.dp-ai-interactive'));
+            },
+            items: editInteractiveButtonName,
+            position: 'node',
+            scope: 'node',
+        });
+
+        editor.on('dblclick', (e) => {
+            const wrap = editor.dom.getParent(e.target, '.dp-ai-interactive');
+            if (!wrap) {
+                return;
+            }
+            e.preventDefault();
+            openInteractiveHtmlEditor(editor, {
+                html: wrap.outerHTML,
+                replaceNode: wrap,
+            });
         });
     };
 };

@@ -17,7 +17,7 @@
 /**
  * Version metadata for tiny_haccgen_extender.
  *
- * Release 1.0 — 10 April 2026.
+ * Release 1.3.18 — Edit generated interactive elements in a dedicated modal.
  *
  * @package tiny_haccgen_extender
  * @copyright 2026, Dynamic Pixel
@@ -28,7 +28,7 @@
 defined('MOODLE_INTERNAL') || die();
 
 $plugin->component = 'tiny_haccgen_extender';
-$plugin->version   = 2026072100;
+$plugin->version   = 2026082501;
 $plugin->requires  = 2022112800;
 $plugin->maturity  = MATURITY_STABLE;
-$plugin->release   = '1.3';
+$plugin->release   = '1.3.18';

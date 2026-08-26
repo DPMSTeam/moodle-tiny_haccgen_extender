@@ -1,0 +1,15 @@
+{
+  "name": "tiny_haccgen_extender",
+  "private": true,
+  "scripts": {
+    "build-amd": "node scripts/build-amd.mjs",
+    "build-amd:video": "node scripts/build-amd.mjs steps/videoGenerationTemplate.js"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.26.0",
+    "@babel/preset-env": "^7.26.0",
+    "@rollup/plugin-babel": "^6.0.4",
+    "rollup": "^4.28.1",
+    "terser": "^5.37.0"
+  }
+}

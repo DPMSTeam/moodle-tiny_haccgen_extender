@@ -34,4 +34,12 @@ $capabilities = [
             'user' => CAP_ALLOW,
         ],
     ],
+    'tiny/haccgen_extender:manage' => [
+        'riskbitmask' => RISK_CONFIG,
+        'captype' => 'write',
+        'contextlevel' => CONTEXT_SYSTEM,
+        'archetypes' => [
+            'manager' => CAP_ALLOW,
+        ],
+    ],
 ];

@@ -22,6 +22,8 @@
     Context variables required for this template:
     * overlayclass - Additional overlay class names.
     * message - Localized loading text.
+    * detail - Optional secondary guidance text.
+    * hasdetail - Whether detail should be shown.
 
     @copyright 2026, Dynamic Pixel
     @license http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
@@ -29,10 +31,17 @@
     Example context (json):
     {
         "overlayclass": "dp-ai-loading-overlay",
-        "message": "Generating..."
+        "message": "Generating...",
+        "detail": "This can take several minutes.",
+        "hasdetail": true
     }
 }}
 <div role="status" aria-live="polite" class="dp-ai-loading-overlay-base{{#overlayclass}} {{overlayclass}}{{/overlayclass}}">
-    <div class="dp-ai-spinner"></div>
-    <p class="dp-ai-loading-overlay-message">{{message}}</p>
+    <div class="dp-ai-loading-overlay-copy">
+        <p class="dp-ai-loading-overlay-message">{{message}}</p>
+        {{#hasdetail}}
+        <p class="dp-ai-loading-overlay-detail">{{detail}}</p>
+        {{/hasdetail}}
+    </div>
+    <div class="dp-ai-spinner" aria-hidden="true"></div>
 </div>

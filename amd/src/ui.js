@@ -38,6 +38,7 @@ import { toAlertText } from './utils';
 import { buildVideoGenerationTemplateConfig } from './steps/videoGenerationTemplate';
 import {buildImageDescriptionTemplateConfig} from './steps/imageDescriptionTemplate';
 import {buildTextRecognitionTemplateConfig} from './steps/textRecognitionTemplate';
+import {buildInteractiveHtmlTemplateConfig} from './steps/interactiveHtmlTemplate';
 import { openResultDialog } from './steps/resultDialog/resultDialog';
 import { showLoadingOverlay, showGlobalLoadingOverlay } from './loadingOverlay';
 const DEFAULT_PURPOSE_KEYS = [
@@ -47,6 +48,7 @@ const DEFAULT_PURPOSE_KEYS = [
   'create_audio',
   'image_generation',
   'infograph_image_generation',
+  'interactive_html_generation',
   'avatar_generation',
   'video_generation',
   'image_description',
@@ -107,6 +109,25 @@ const PURPOSE_DEFS = [
     templates: [
       { id: 'long', nameKey: 'template_infograph_long', options: { style: 'infographic', infograph_mode: 'long' } },
       { id: 'summarize', nameKey: 'template_infograph_summarize', options: { style: 'infographic', infograph_mode: 'summarize' } },
+    ],
+  },
+  {
+    key: 'interactive_html_generation',
+    labelKey: 'purpose_interactive_html_generation_label',
+    descriptionKey: 'purpose_interactive_html_generation_desc',
+    templates: [
+      { id: 'accordion', nameKey: 'layout_accordion_label', options: { element_type: 'accordion' } },
+      { id: 'tabs', nameKey: 'layout_tabs_label', options: { element_type: 'tabs' } },
+      { id: 'faq', nameKey: 'layout_faq_label', options: { element_type: 'faq' } },
+      { id: 'steps', nameKey: 'layout_steps_label', options: { element_type: 'steps' } },
+      { id: 'glossary', nameKey: 'layout_glossary_label', options: { element_type: 'glossary' } },
+      { id: 'timeline', nameKey: 'layout_timeline_label', options: { element_type: 'timeline' } },
+      { id: 'comparison', nameKey: 'layout_comparison_label', options: { element_type: 'comparison' } },
+      { id: 'callouts', nameKey: 'layout_callouts_label', options: { element_type: 'callouts' } },
+      { id: 'cards', nameKey: 'layout_cards_label', options: { element_type: 'cards' } },
+      { id: 'checklist', nameKey: 'layout_checklist_label', options: { element_type: 'checklist' } },
+      { id: 'quiz', nameKey: 'layout_quiz_label', options: { element_type: 'quiz' } },
+      { id: 'spoiler', nameKey: 'layout_spoiler_label', options: { element_type: 'spoiler' } },
     ],
   },
   {
@@ -340,6 +361,12 @@ const getPurposeIconSvg = (key) => {
         <path d="M4 19V5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
         <path d="M6.5 19h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
         <path d="M8 17v-5M12 17V7M16 17v-3M20 17v-8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+    `,
+    interactive_html_generation: `
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" aria-hidden="true">
+        <path d="M5 6h14M5 12h14M5 18h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        <path d="M19 16l2 2-2 2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>
     `,
     avatar_generation: `
@@ -624,6 +651,11 @@ export const openModal = async (editor) => {
       }
       else if (purposeKey === 'infograph_image_generation') {
         const cfg = await buildInfographImageGenerationTemplateConfig({ editor, selectionText, goBack });
+        openCfg(cfg);
+        return;
+      }
+      else if (purposeKey === 'interactive_html_generation') {
+        const cfg = await buildInteractiveHtmlTemplateConfig({ editor, selectionText, goBack });
         openCfg(cfg);
         return;
       }

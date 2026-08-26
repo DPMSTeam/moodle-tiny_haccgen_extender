@@ -30,12 +30,14 @@ const parseFirstElement = (html) => {
   return doc.body.firstElementChild;
 };
 
-const renderOverlayElement = async (overlayClass, message) => {
+const renderOverlayElement = async (overlayClass, message, detail = '') => {
   const rendered = await Templates.renderForPromise(
     `${component}/components/loading-overlay`,
     {
       overlayclass: overlayClass,
       message: String(message || ''),
+      detail: String(detail || ''),
+      hasdetail: Boolean(detail),
     }
   );
   if (rendered.js) {
@@ -44,34 +46,80 @@ const renderOverlayElement = async (overlayClass, message) => {
   return parseFirstElement(rendered.html);
 };
 
+const setOverlayText = (overlay, message, detail = '') => {
+  if (!overlay) {
+    return;
+  }
+  const msgEl = overlay.querySelector('.dp-ai-loading-overlay-message');
+  if (msgEl) {
+    msgEl.textContent = String(message || '');
+  }
+  let detailEl = overlay.querySelector('.dp-ai-loading-overlay-detail');
+  const detailText = String(detail || '');
+  if (detailText) {
+    if (!detailEl) {
+      detailEl = document.createElement('p');
+      detailEl.className = 'dp-ai-loading-overlay-detail';
+      overlay.appendChild(detailEl);
+    }
+    detailEl.textContent = detailText;
+    detailEl.hidden = false;
+  } else if (detailEl) {
+    detailEl.textContent = '';
+    detailEl.hidden = true;
+  }
+};
+
 /**
  * Show a loading overlay (spinner + message) on the dialog when api.block is not available.
- * Use the returned function to remove the overlay when the request completes.
+ * Use the returned helpers to update or remove the overlay.
  * @param {Object} api - TinyMCE dialog API (must have getEl if block is not used).
  * @param {string} message - Message to show (e.g. "AI is generating…").
- * @returns {function()} removeLoadingOverlay - Call when done (success or error).
+ * @param {string} [detail] - Optional secondary guidance text.
+ * @returns {{remove: function(), update: function(string, string=): void}}
  */
-export const showLoadingOverlay = (api, message) => {
+export const showLoadingOverlay = (api, message, detail = '') => {
   let cancelled = false;
-  const removeLoadingOverlay = () => {
+  const usesBlock = typeof api.block === 'function';
+  let overlayRoot = null;
+
+  const remove = () => {
     cancelled = true;
     const overlay = api._dpLoadingOverlay;
     if (overlay && overlay.parentNode) {
       overlay.parentNode.removeChild(overlay);
-      api._dpLoadingOverlay = null;
+    }
+    api._dpLoadingOverlay = null;
+    if (overlayRoot) {
+      overlayRoot.classList.remove('dp-ai-loading-overlay-container');
     }
   };
 
-  if (typeof api.block === 'function') {
-    api.block(message);
-    return removeLoadingOverlay;
+  const update = (nextMessage, nextDetail = '') => {
+    if (cancelled) {
+      return;
+    }
+    const msg = String(nextMessage || '');
+    const det = String(nextDetail || '');
+    setOverlayText(api._dpLoadingOverlay, msg, det);
+  };
+
+  // Keep TinyMCE's dialog controls disabled while the request is running.
+  // Its native busy layer is covered by our consistently positioned overlay.
+  if (usesBlock) {
+    api.block('');
   }
 
-  const root = (typeof api.getEl === 'function' && api.getEl()) ||
-    document.querySelector('.tox-dialog-wrap');
+  const apiEl = typeof api.getEl === 'function' ? api.getEl() : null;
+  const dialogs = document.querySelectorAll('.tox-dialog');
+  const root = (apiEl && apiEl.classList?.contains('tox-dialog') ? apiEl : null) ||
+    (apiEl && typeof apiEl.closest === 'function' ? apiEl.closest('.tox-dialog') : null) ||
+    (apiEl && typeof apiEl.querySelector === 'function' ? apiEl.querySelector('.tox-dialog') : null) ||
+    (dialogs.length ? dialogs[dialogs.length - 1] : null);
   if (root) {
+    overlayRoot = root;
     root.classList.add('dp-ai-loading-overlay-container');
-    void renderOverlayElement('dp-ai-loading-overlay', message).then((overlay) => {
+    void renderOverlayElement('dp-ai-loading-overlay', message, detail).then((overlay) => {
       if (cancelled || !overlay || !root.isConnected) {
         return;
       }
@@ -81,7 +129,8 @@ export const showLoadingOverlay = (api, message) => {
       // Ignore overlay rendering failures.
     });
   }
-  return removeLoadingOverlay;
+  remove.update = update;
+  return remove;
 };
 
 /**

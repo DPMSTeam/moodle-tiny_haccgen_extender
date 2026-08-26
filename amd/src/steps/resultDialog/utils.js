@@ -207,6 +207,44 @@ export const textToHtml = (text) => {
   return out.length ? out.join('') : '<p>' + inlineFormat(esc(s.replace(/\n/g, ' '))) + '</p>';
 };
 
+/**
+ * Strip markdown fences and chatty wrappers from model HTML output.
+ *
+ * @param {string} text Raw model output.
+ * @returns {string} HTML string.
+ */
+export const stripHtmlFences = (text) => {
+  let s = String(text || '').trim();
+  if (!s) {
+    return '';
+  }
+  s = s.replace(/^```(?:html|HTML|xml)?\s*/i, '').replace(/\s*```$/i, '').trim();
+  const firstTag = s.search(/<[a-z][\s\S]*>/i);
+  if (firstTag > 0) {
+    s = s.slice(firstTag).trim();
+  }
+  return s;
+};
+
+/**
+ * Ensure interactive HTML is wrapped for later CSS / re-edit.
+ *
+ * @param {string} html Raw HTML.
+ * @param {string} elementType accordion|tabs|faq|steps|glossary|timeline|comparison|callouts|cards|checklist|quiz|spoiler
+ * @returns {string}
+ */
+export const wrapInteractiveHtml = (html, elementType) => {
+  const s = stripHtmlFences(html);
+  if (!s) {
+    return '';
+  }
+  const type = String(elementType || 'accordion').toLowerCase().replace(/[^a-z0-9_-]/g, '') || 'accordion';
+  if (/class\s*=\s*["'][^"']*dp-ai-interactive/i.test(s)) {
+    return s;
+  }
+  return `<div class="dp-ai-interactive dp-ai-interactive--${type}">${s}</div>`;
+};
+
 export const copyToClipboard = async (text) => {
     if (!text) {return;}
     try {

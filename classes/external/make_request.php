@@ -85,41 +85,14 @@ class make_request extends \external_api {
     }
 
     /**
-     * Redacts sensitive keys before writing to the PHP error log.
+     * Short server log for upstream failures only (never debugging() — avoids nginx 502).
      *
-     * @param mixed $data Value to sanitize.
-     * @return mixed Sanitized copy.
+     * @param string $purpose Purpose key.
+     * @param string $message Short error summary.
      */
-    private static function sanitize_log_data($data) {
-        if (!is_array($data)) {
-            return $data;
-        }
-        $copy = $data;
-        foreach (['api_secret', 'api_key'] as $key) {
-            if (!empty($copy[$key])) {
-                $copy[$key] = '[REDACTED]';
-            }
-        }
-        return $copy;
-    }
-
-    /**
-     * Logs a truncated snippet through Moodle debugging.
-     *
-     * @param string $label Log label.
-     * @param mixed $data String or encodable value.
-     */
-    private static function tiny_haccgen_extender_log(string $label, $data): void {
-        $max = 2000;
-        $data = self::sanitize_log_data($data);
-        if (is_string($data)) {
-            $snip = mb_substr($data, 0, $max);
-        } else {
-            $json = json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-            $snip = mb_substr((string)$json, 0, $max);
-        }
-
-        debugging('[tiny_haccgen_extender] ' . $label . ': ' . $snip, DEBUG_DEVELOPER);
+    private static function log_upstream_failure(string $purpose, string $message): void {
+        $line = '[tiny_haccgen_extender] ' . $purpose . ': ' . mb_substr(trim($message), 0, 200);
+        error_log($line);
     }
 
     /**
@@ -189,17 +162,71 @@ class make_request extends \external_api {
                 ];
             }
             return [
-                'language' => [['id' => 'en', 'name' => 'English']],
-                'voice_id' => [['id' => '__default_voice__', 'name' => 'Default (auto)']],
-                'fonts' => [['id' => '__default_font__', 'name' => 'Default']],
-                'aspect_ratios' => [
-                    ['id' => '16:9', 'name' => '16:9 (Landscape)'],
-                    ['id' => '9:16', 'name' => '9:16 (Portrait)'],
-                    ['id' => '1:1', 'name' => '1:1 (Square)'],
+                'provider' => 'native_video',
+                'use_storyboard' => [
+                    ['id' => 'true', 'name' => 'AI storyboard (writes script, scenes, and image prompts from your topic)'],
+                    ['id' => 'false', 'name' => 'Use my narration / Transcribe and Prompt (uses your text; one scene and image prompt per sentence)'],
                 ],
-                'output_format' => [
-                    ['id' => 'mp4', 'name' => 'MP4'],
-                    ['id' => 'webm', 'name' => 'WebM'],
+                'race' => [
+                    ['id' => '', 'name' => 'Default'],
+                    ['id' => 'Indian', 'name' => 'Indian'],
+                    ['id' => 'any_other', 'name' => 'Other'],
+                ],
+                'image_source' => [
+                    ['id' => '', 'name' => 'Default'],
+                    ['id' => 'pexels', 'name' => 'Pexels stock'],
+                    ['id' => 'llm', 'name' => 'AI-generated only'],
+                ],
+                'voice_gender' => [
+                    ['id' => '', 'name' => 'Default'],
+                    ['id' => 'male', 'name' => 'Male (Puck)'],
+                    ['id' => 'female', 'name' => 'Female (Kore)'],
+                ],
+                'language' => [
+                    ['id' => '', 'name' => 'Default (English, India)'],
+                    ['id' => 'english', 'name' => 'English'],
+                    ['id' => 'hindi', 'name' => 'Hindi'],
+                    ['id' => 'bengali', 'name' => 'Bengali / Bangla'],
+                    ['id' => 'marathi', 'name' => 'Marathi'],
+                    ['id' => 'tamil', 'name' => 'Tamil'],
+                    ['id' => 'telugu', 'name' => 'Telugu'],
+                    ['id' => 'gujarati', 'name' => 'Gujarati'],
+                    ['id' => 'kannada', 'name' => 'Kannada'],
+                    ['id' => 'malayalam', 'name' => 'Malayalam'],
+                    ['id' => 'punjabi', 'name' => 'Punjabi'],
+                    ['id' => 'urdu', 'name' => 'Urdu'],
+                    ['id' => 'odia', 'name' => 'Odia / Oriya'],
+                    ['id' => 'assamese', 'name' => 'Assamese'],
+                    ['id' => 'konkani', 'name' => 'Konkani'],
+                    ['id' => 'nepali', 'name' => 'Nepali'],
+                ],
+                'language_code' => [
+                    ['id' => 'en-IN', 'name' => 'English (India)'],
+                    ['id' => 'en-US', 'name' => 'English (US)'],
+                    ['id' => 'en-GB', 'name' => 'English (UK)'],
+                    ['id' => 'en-AU', 'name' => 'English (Australia)'],
+                    ['id' => 'hi-IN', 'name' => 'Hindi (India)'],
+                    ['id' => 'mr-IN', 'name' => 'Marathi (India)'],
+                    ['id' => 'ta-IN', 'name' => 'Tamil (India)'],
+                    ['id' => 'te-IN', 'name' => 'Telugu (India)'],
+                    ['id' => 'bn-BD', 'name' => 'Bangla (Bangladesh)'],
+                    ['id' => 'ar-EG', 'name' => 'Arabic (Egypt)'],
+                    ['id' => 'nl-NL', 'name' => 'Dutch (Netherlands)'],
+                    ['id' => 'fr-FR', 'name' => 'French (France)'],
+                    ['id' => 'de-DE', 'name' => 'German (Germany)'],
+                    ['id' => 'id-ID', 'name' => 'Indonesian (Indonesia)'],
+                    ['id' => 'it-IT', 'name' => 'Italian (Italy)'],
+                    ['id' => 'ja-JP', 'name' => 'Japanese (Japan)'],
+                    ['id' => 'ko-KR', 'name' => 'Korean (South Korea)'],
+                    ['id' => 'pl-PL', 'name' => 'Polish (Poland)'],
+                    ['id' => 'pt-BR', 'name' => 'Portuguese (Brazil)'],
+                    ['id' => 'ro-RO', 'name' => 'Romanian (Romania)'],
+                    ['id' => 'ru-RU', 'name' => 'Russian (Russia)'],
+                    ['id' => 'es-ES', 'name' => 'Spanish (Spain)'],
+                    ['id' => 'th-TH', 'name' => 'Thai (Thailand)'],
+                    ['id' => 'tr-TR', 'name' => 'Turkish (Turkey)'],
+                    ['id' => 'uk-UA', 'name' => 'Ukrainian (Ukraine)'],
+                    ['id' => 'vi-VN', 'name' => 'Vietnamese (Vietnam)'],
                 ],
             ];
         };
@@ -236,10 +263,25 @@ class make_request extends \external_api {
         $allowed = (string) get_config('tiny_haccgen_extender', 'allowedpurposes');
         $allowed = array_filter(array_map('trim', explode(',', $allowed)));
         if (!empty($allowed) && !in_array($params['purpose'], $allowed, true)) {
-            if ($isoptionspurpose) {
-                return ['code' => 200, 'result' => json_encode($optionsfallback(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)];
+            $purposeok = false;
+            // Allow status/options companions when the base purpose is allowed.
+            foreach (['_status', '_options'] as $suffix) {
+                if (str_ends_with($params['purpose'], $suffix)) {
+                    $base = substr($params['purpose'], 0, -strlen($suffix));
+                    if (in_array($base, $allowed, true)
+                            || ($base === 'videogen' && in_array('video_generation', $allowed, true))
+                            || ($base === 'video_generation' && in_array('videogen', $allowed, true))) {
+                        $purposeok = true;
+                    }
+                    break;
+                }
             }
-            return ['code' => 400, 'result' => json_encode(['message' => 'Purpose not allowed'])];
+            if (!$purposeok) {
+                if ($isoptionspurpose) {
+                    return ['code' => 200, 'result' => json_encode($optionsfallback(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)];
+                }
+                return ['code' => 400, 'result' => json_encode(['message' => 'Purpose not allowed'])];
+            }
         }
 
         $options = json_decode($params['optionsjson'], true);
@@ -256,6 +298,7 @@ class make_request extends \external_api {
             'create_audio',
             'image_generation',
             'videogen',
+            'video_generation',
             'avatar_generation',
             'infograph_image_generation',
         ];
@@ -263,10 +306,6 @@ class make_request extends \external_api {
             $itemid = isset($options['itemid']) ? (int)$options['itemid'] : 0;
             if ($itemid <= 0) {
                 $itemid = (int) file_get_unused_draft_itemid();
-                self::tiny_haccgen_extender_log('REQUEST itemid injected', [
-                    'purpose' => $params['purpose'],
-                    'itemid' => $itemid,
-                ]);
             }
             $options['itemid'] = $itemid;
         }
@@ -290,15 +329,13 @@ class make_request extends \external_api {
         }
         $curl->setHeader($headers);
         $curl->setopt(['CURLOPT_TIMEOUT' => $timeout]);
-        self::tiny_haccgen_extender_log('REQUEST endpoint', $endpoint);
-        self::tiny_haccgen_extender_log('REQUEST payload', $payload);
 
         $raw = $curl->post($endpoint, json_encode($payload));
 
         if ($curl->get_errno()) {
             $cerr = self::moodle_curl_error_text($curl);
             $curlerr = $curl->get_errno() . ': ' . ($cerr !== '' ? $cerr : 'Unknown error');
-            self::tiny_haccgen_extender_log('REQUEST curl error', $curlerr);
+            self::log_upstream_failure($params['purpose'], 'curl ' . $curlerr);
             $msg = (stripos($cerr, 'timeout') !== false)
                 ? 'Upstream request timed out (video generation can take several minutes).'
                 : 'Upstream request failed.';
@@ -308,59 +345,10 @@ class make_request extends \external_api {
             return ['code' => 502, 'result' => json_encode(['message' => $msg])];
         }
 
-        self::tiny_haccgen_extender_log('RESPONSE raw', $raw);
         $decoded = json_decode($raw, true);
-        self::tiny_haccgen_extender_log('RESPONSE json_last_error', json_last_error_msg());
 
         if (is_array($decoded)) {
-            self::tiny_haccgen_extender_log('RESPONSE decoded_keys', array_keys($decoded));
-
-            // Useful: lengths and counts for huge option payloads.
             $out = $decoded['outputText'] ?? $decoded['output'] ?? $decoded['result'] ?? null;
-
-            self::tiny_haccgen_extender_log('RESPONSE code/provider/purpose', [
-                'code' => $decoded['code'] ?? null,
-                'purpose' => $decoded['purpose'] ?? null,
-                'provider' => $decoded['provider'] ?? null,
-            ]);
-
-            if (is_string($out)) {
-                self::tiny_haccgen_extender_log('RESPONSE output_len', strlen($out));
-            } else {
-                self::tiny_haccgen_extender_log('RESPONSE output_type', gettype($out));
-            }
-
-            $logoptionssummary = function(array $opts, string $purpose): void {
-                self::tiny_haccgen_extender_log('OPTIONS purpose', $purpose);
-                self::tiny_haccgen_extender_log('OPTIONS counts', [
-                    'avatar_id' => isset($opts['avatar_id']) && is_array($opts['avatar_id'])
-                        ? count($opts['avatar_id']) : null,
-                    'voice_id' => isset($opts['voice_id']) && is_array($opts['voice_id'])
-                        ? count($opts['voice_id']) : null,
-                    'video_style_id' => isset($opts['video_style_id']) && is_array($opts['video_style_id'])
-                        ? count($opts['video_style_id']) : null,
-                    'output_format' => isset($opts['output_format']) && is_array($opts['output_format'])
-                        ? count($opts['output_format']) : null,
-                    'resolution' => isset($opts['resolution']) && is_array($opts['resolution'])
-                        ? count($opts['resolution']) : null,
-                    'language' => isset($opts['language']) && is_array($opts['language'])
-                        ? count($opts['language']) : null,
-                    'fonts' => isset($opts['fonts']) && is_array($opts['fonts'])
-                        ? count($opts['fonts']) : null,
-                    'aspect_ratios' => isset($opts['aspect_ratios']) && is_array($opts['aspect_ratios'])
-                        ? count($opts['aspect_ratios']) : null,
-                ]);
-                self::tiny_haccgen_extender_log('OPTIONS samples', [
-                    'avatar_sample' => array_slice($opts['avatar_id'] ?? [], 0, 3),
-                    'voice_sample' => array_slice($opts['voice_id'] ?? [], 0, 3),
-                    'style_sample' => array_slice($opts['video_style_id'] ?? [], 0, 3),
-                    'format_sample' => array_slice($opts['output_format'] ?? [], 0, 3),
-                    'resolution_sample' => array_slice($opts['resolution'] ?? [], 0, 3),
-                    'language_sample' => array_slice($opts['language'] ?? [], 0, 3),
-                    'fonts_sample' => array_slice($opts['fonts'] ?? [], 0, 3),
-                    'aspect_sample' => array_slice($opts['aspect_ratios'] ?? [], 0, 3),
-                ]);
-            };
 
             // Error from upstream: pass through code and message.
             $err = $decoded['error'] ?? null;
@@ -402,7 +390,7 @@ class make_request extends \external_api {
                 }
 
                 if (!is_array($opts)) {
-                    self::tiny_haccgen_extender_log('OPTIONS fallback', 'unable to parse upstream options payload');
+                    self::log_upstream_failure($params['purpose'], 'options payload parse failed; using defaults');
                     $opts = $optionsfallback();
                 }
 
@@ -476,36 +464,53 @@ class make_request extends \external_api {
                 }
 
                 if ($isvideooptions) {
-                    $opts['language'] = $normalizelist($opts['language'] ?? [], ['id', 'code', 'languageCode', 'value'], ['name', 'languageName', 'text', 'label']);
-                    $opts['voice_id'] = $normalizelist($opts['voice_id'] ?? [], ['id', 'voice_id', 'voiceId', 'value'], ['name', 'displayName', 'text', 'label']);
-                    $opts['fonts'] = $normalizelist($opts['fonts'] ?? [], ['id', 'font_id', 'fontId', 'fontName', 'value'], ['name', 'displayName', 'fontName', 'text', 'label']);
-                    $opts['aspect_ratios'] = $normalizelist($opts['aspect_ratios'] ?? [], ['id', 'ratio', 'value'], ['name', 'text', 'label']);
-                    $opts['output_format'] = $normalizelist($opts['output_format'] ?? [], ['id', 'format', 'value'], ['name', 'text', 'label']);
+                    $isnativevideo = (($opts['provider'] ?? '') === 'native_video') || !empty($opts['use_storyboard']);
+                    if ($isnativevideo) {
+                        $opts['provider'] = 'native_video';
+                        $opts['use_storyboard'] = $normalizelist($opts['use_storyboard'] ?? [], ['id', 'value'], ['name', 'text', 'label']);
+                        $opts['race'] = $normalizelist($opts['race'] ?? [], ['id', 'value'], ['name', 'text', 'label']);
+                        unset($opts['model_id'], $opts['voice_id'], $opts['target_audience']);
+                        $opts['image_source'] = $normalizelist($opts['image_source'] ?? [], ['id', 'value'], ['name', 'text', 'label']);
+                        $opts['voice_gender'] = $normalizelist($opts['voice_gender'] ?? [], ['id', 'value'], ['name', 'text', 'label']);
+                        $opts['language'] = $normalizelist($opts['language'] ?? [], ['id', 'value'], ['name', 'text', 'label']);
+                        $opts['language_code'] = $normalizelist($opts['language_code'] ?? [], ['id', 'code', 'languageCode', 'value'], ['name', 'languageName', 'text', 'label']);
+                        $fallback = $optionsfallback();
+                        foreach (['use_storyboard', 'language', 'language_code'] as $key) {
+                            if (empty($opts[$key])) {
+                                $opts[$key] = $fallback[$key];
+                            }
+                        }
+                    } else {
+                        $opts['language'] = $normalizelist($opts['language'] ?? [], ['id', 'code', 'languageCode', 'value'], ['name', 'languageName', 'text', 'label']);
+                        $opts['voice_id'] = $normalizelist($opts['voice_id'] ?? [], ['id', 'voice_id', 'voiceId', 'value'], ['name', 'displayName', 'text', 'label']);
+                        $opts['fonts'] = $normalizelist($opts['fonts'] ?? [], ['id', 'font_id', 'fontId', 'fontName', 'value'], ['name', 'displayName', 'fontName', 'text', 'label']);
+                        $opts['aspect_ratios'] = $normalizelist($opts['aspect_ratios'] ?? [], ['id', 'ratio', 'value'], ['name', 'text', 'label']);
+                        $opts['output_format'] = $normalizelist($opts['output_format'] ?? [], ['id', 'format', 'value'], ['name', 'text', 'label']);
 
-                    if (empty($opts['language'])) {
-                        $opts['language'] = [['id' => 'en', 'name' => 'English']];
-                    }
-                    if (empty($opts['voice_id'])) {
-                        $opts['voice_id'] = [['id' => '__default_voice__', 'name' => 'Default (auto)']];
-                    }
-                    if (empty($opts['fonts'])) {
-                        $opts['fonts'] = [['id' => '__default_font__', 'name' => 'Default']];
-                    }
-                    if (empty($opts['aspect_ratios'])) {
-                        $opts['aspect_ratios'] = [
-                            ['id' => '16:9', 'name' => '16:9 (Landscape)'],
-                            ['id' => '9:16', 'name' => '9:16 (Portrait)'],
-                            ['id' => '1:1', 'name' => '1:1 (Square)'],
-                        ];
-                    }
-                    if (empty($opts['output_format'])) {
-                        $opts['output_format'] = [
-                            ['id' => 'mp4', 'name' => 'MP4'],
-                            ['id' => 'webm', 'name' => 'WebM'],
-                        ];
+                        if (empty($opts['language'])) {
+                            $opts['language'] = [['id' => 'en', 'name' => 'English']];
+                        }
+                        if (empty($opts['voice_id'])) {
+                            $opts['voice_id'] = [['id' => '__default_voice__', 'name' => 'Default (auto)']];
+                        }
+                        if (empty($opts['fonts'])) {
+                            $opts['fonts'] = [['id' => '__default_font__', 'name' => 'Default']];
+                        }
+                        if (empty($opts['aspect_ratios'])) {
+                            $opts['aspect_ratios'] = [
+                                ['id' => '16:9', 'name' => '16:9 (Landscape)'],
+                                ['id' => '9:16', 'name' => '9:16 (Portrait)'],
+                                ['id' => '1:1', 'name' => '1:1 (Square)'],
+                            ];
+                        }
+                        if (empty($opts['output_format'])) {
+                            $opts['output_format'] = [
+                                ['id' => 'mp4', 'name' => 'MP4'],
+                                ['id' => 'webm', 'name' => 'WebM'],
+                            ];
+                        }
                     }
                 }
-                $logoptionssummary($opts, $params['purpose']);
 
                 return [
                     'code' => $code,
@@ -513,9 +518,11 @@ class make_request extends \external_api {
                 ];
             }
 
-            // When response includes media (e.g. image_generation), pass full response so frontend gets media[].url.
+            // Pass full JSON when media/job status is present so the frontend can poll async video jobs.
             $media = $decoded['media'] ?? null;
-            if (is_array($media) && count($media) > 0) {
+            $hasjob = !empty($decoded['job_id']);
+            $hasstatus = !empty($decoded['status']);
+            if ((is_array($media) && count($media) > 0) || $hasjob || $hasstatus) {
                 $result = json_encode($decoded, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
             } else {
                 $result = is_string($out) ? $out : (string) $raw;

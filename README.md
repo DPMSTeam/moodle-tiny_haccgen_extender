@@ -23,7 +23,7 @@ Tiny editor plugin for Moodle. It adds AI tools inside the editor (summarise, tr
 | Timeout (seconds) | No | How long to wait before a request fails. Video jobs can take several minutes. |
 | Allowed purposes | No | Comma-separated purpose keys. Empty = all tools. |
 
-Get credentials: [subscription.dynamicpixel.co.in](https://subscription.dynamicpixel.co.in/)
+Get credentials: [https://haccgen.com/]
 
 The settings page also shows **subscription usage for this site** (words, audio seconds, images, video seconds). Totals are for the LMS subscription, not per user.
 

@@ -35,15 +35,6 @@ $functions = [
         'ajax'        => true,
         'capabilities' => 'tiny/haccgen_extender:use',
     ],
-    'tiny_haccgen_extender_videogen_options' => [
-        'classname'   => 'tiny_haccgen_extender\\external\\videogen_options',
-        'methodname'  => 'execute',
-        'classpath'   => '',
-        'description' => 'Fetch video generation options from middleware',
-        'type'        => 'read',
-        'ajax'        => true,
-        'capabilities' => 'tiny/haccgen_extender:use',
-    ],
     'tiny_haccgen_extender_localize_media' => [
         'classname'   => 'tiny_haccgen_extender\\external\\localize_media',
         'methodname'  => 'execute',

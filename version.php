@@ -17,7 +17,7 @@
 /**
  * Version metadata for tiny_haccgen_extender.
  *
- * Release 1.3.24 — Wait for TinyMCE before mounting the audio preview.
+ * Release 1.4 — Native video generation in the Tiny editor.
  *
  * @package tiny_haccgen_extender
  * @copyright 2026, Dynamic Pixel

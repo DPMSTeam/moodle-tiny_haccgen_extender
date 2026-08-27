@@ -31,14 +31,6 @@ export const makeRequest = (purpose, input, optionsjson) =>
     },
   ])[0];
 
-export const fetchVideogenOptions = () =>
-  fetchMany([
-    {
-      methodname: 'tiny_haccgen_extender_videogen_options',
-      args: {},
-    },
-  ])[0];
-
 export const localizeMediaToDraft = (url, itemid, kind = 'media', mime = '') =>
   fetchMany([
     {

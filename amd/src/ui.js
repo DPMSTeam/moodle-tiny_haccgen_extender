@@ -51,7 +51,6 @@ const DEFAULT_PURPOSE_KEYS = [
   'video_generation',
   'image_description',
   'text_recognition',
-  /* 'optimize', */
 ];
 
 const PURPOSE_DEFS = [
@@ -418,7 +417,6 @@ const buildStep2Config = async (editor, purposeDefs, selectionText, purposeKey, 
   const title = await getString('modal_title', component);
   const fieldOptions = await getString('field_options', component);
   const fieldPrompt = await getString('field_prompt', component);
-  const placeholderScenarioPrompt = await getString('placeholder_create_scenario_prompt', component);
   const errPromptRequired = await getString('err_prompt_required', component);
   const btnRun = await getString('btn_run', component);
   const btnCancel = await getString('btn_cancel', component);
@@ -463,7 +461,6 @@ const buildStep2Config = async (editor, purposeDefs, selectionText, purposeKey, 
           type: 'textarea',
           name: 'prompt',
           label: fieldPrompt,
-          placeholder: placeholderScenarioPrompt,
         },
         {
           type: 'textarea',

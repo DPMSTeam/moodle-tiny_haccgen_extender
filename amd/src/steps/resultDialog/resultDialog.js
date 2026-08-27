@@ -27,8 +27,9 @@ import Log from 'core/log';
 import Templates from 'core/templates';
 import { component } from '../../common';
 
-import { escapeHtml, normalizeResult, ensureDataUrl, copyToClipboard, textToHtml, wrapInteractiveHtml } from './utils';
-import { getAudioFromResult, getImageFromResult, getVideoFromResult } from './mediaExtractors';
+import { escapeHtml, normalizeResult, ensureDataUrl, copyToClipboard, textToHtml,
+   playableAudioMime, dataUrlToBlob, pcmToWavBlob } from './utils';
+import { getAudioFromResult, getImageFromResult, getVideoFromResult, getVideoTracksFromResult } from './mediaExtractors';
 import { maybeUploadDataUrlToDraft } from './mediaUpload';
 import {
   insertBelowSelection,
@@ -38,12 +39,48 @@ import {
   replaceWithImageHtml,
   insertVideoHtml,
   replaceWithVideoHtml,
-  insertInteractiveHtml,
-  replaceWithInteractiveHtml,
 } from './editorInsert';
-import {openInteractiveHtmlEditor} from '../interactiveHtmlEditor';
 
-const INTERACTIVE_HTML_PURPOSES = ['interactive_html_generation'];
+/**
+ * Build a local blob URL for audio preview so the player never fetches draftfile.php
+ * from a data: iframe (that request fails with ERR_UNEXPECTED_PROXY_AUTH).
+ *
+ * @param {string} dataUrl
+ * @param {string} mimeHint
+ * @returns {Promise<{url: string, mime: string, revoke: function()}>}
+ */
+const createLocalAudioPreview = async (dataUrl, mimeHint) => {
+  const fallback = {
+    url: '',
+    mime: playableAudioMime(dataUrl, mimeHint),
+    revoke: () => {},
+  };
+  if (!dataUrl || !String(dataUrl).startsWith('data:')) {
+    return fallback;
+  }
+  let blob = dataUrlToBlob(dataUrl);
+  if (!blob) {
+    return fallback;
+  }
+  const type = blob.type || mimeHint || '';
+  if (/l16|pcm|audio\/raw/i.test(type)) {
+    const bytes = new Uint8Array(await blob.arrayBuffer());
+    const alreadyWav = bytes.length >= 4
+      && bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46;
+    if (!alreadyWav) {
+      const rateMatch = String(type).match(/rate=(\d+)/i);
+      blob = pcmToWavBlob(bytes, rateMatch ? Number(rateMatch[1]) : 24000);
+    }
+  }
+  const url = URL.createObjectURL(blob);
+  return {
+    url,
+    mime: blob.type || 'audio/wav',
+    revoke: () => {
+      URL.revokeObjectURL(url);
+    },
+  };
+};
 
 /**
  * Prevent Space/Enter/Escape from accidentally dismissing the result dialog.
@@ -152,18 +189,13 @@ export const openResultDialog = async (editor, resultText, opts = {}) => {
   const resultDialogTitle = await getString('result_dialog_title', component);
   const btnClose = await getString('btn_close', component);
   const btnInsertBelow = await getString('btn_insert_below', component);
-  const btnInsertIntoEditor = await getString('btn_insert_into_editor', component);
   const btnReplaceSelection = await getString('btn_replace_selection', component);
   const btnCopy = await getString('btn_copy', component);
-  const btnTryAnotherLayout = await getString('btn_try_another_layout', component);
-  const btnEditInteractive = await getString('btn_edit_interactive', component);
-  const interactivePreviewHint = await getString('interactive_preview_hint', component);
   const errMediaPrepareInsert = await getString('err_media_prepare_insert', component);
   const errMediaPrepareReplace = await getString('err_media_prepare_replace', component);
   const valueEmpty = await getString('value_empty', component);
   const hasSelection = Boolean(opts.hasSelection);
   const goBack = opts.goBack;
-  const onTryAnother = typeof opts.onTryAnother === 'function' ? opts.onTryAnother : null;
 
   const normalized = normalizeResult(resultText);
   const purpose = String(opts.purpose || normalized.purpose || '');
@@ -176,6 +208,7 @@ export const openResultDialog = async (editor, resultText, opts = {}) => {
   const audioFound = getAudioFromResult(resultText);
   const imageFound = getImageFromResult(resultText);
   const videoFound = getVideoFromResult(resultText);
+  const videoTracksRaw = getVideoTracksFromResult(resultText);
 
   const audioMime = (audioFound.mime || 'audio/mpeg').trim() || 'audio/mpeg';
   const imageMime = (imageFound.mime || 'image/png').trim() || 'image/png';
@@ -191,17 +224,13 @@ export const openResultDialog = async (editor, resultText, opts = {}) => {
   const isVideo = isVideoPurpose && /^https?:\/\//i.test(rawVideoUrl);
   const videoUrl = isVideo ? rawVideoUrl : '';
   const normalizedVideoUrl = videoUrl.replace(/&amp;/gi, '&');
-  const isInteractiveHtml = INTERACTIVE_HTML_PURPOSES.includes(purpose);
-  const interactiveHtml = isInteractiveHtml
-    ? wrapInteractiveHtml(outputText, opts.elementType || '')
-    : '';
 
   Log.debug('[tiny_haccgen_extender:result_dialog] media flags isAudio=' + isAudio + ' isImage=' + isImage +
-    ' isImageIntentNoImage=' + isImageIntentNoImage + ' isVideo=' + isVideo +
-    ' isInteractiveHtml=' + isInteractiveHtml);
+    ' isImageIntentNoImage=' + isImageIntentNoImage + ' isVideo=' + isVideo);
 
   let playableUrl = '';
   let uploadError = '';
+  let localizedVideoTracks = [];
   let requestItemId = Number(opts.requestItemId || 0);
   if (Number.isNaN(requestItemId) || requestItemId < 0) {
     requestItemId = 0;
@@ -229,6 +258,26 @@ export const openResultDialog = async (editor, resultText, opts = {}) => {
     const up = await maybeUploadDataUrlToDraft(editor, normalizedVideoUrl, 'video/mp4', 'video', uploadOpts);
     playableUrl = up.playableUrl;
     uploadError = up.uploadError;
+    if (videoTracksRaw.length) {
+      const uploadedTracks = await Promise.all(videoTracksRaw.map(async (track) => {
+        const trackMime = String(track.mime || 'text/vtt').trim() || 'text/vtt';
+        const upTrack = await maybeUploadDataUrlToDraft(
+          editor,
+          track.url,
+          trackMime,
+          'captions',
+          uploadOpts
+        );
+        if (!upTrack.playableUrl) {
+          return null;
+        }
+        return {
+          ...track,
+          url: upTrack.playableUrl,
+        };
+      }));
+      localizedVideoTracks = uploadedTracks.filter(Boolean);
+    }
   }
 
   if (isAudio || isImage || isVideo) {
@@ -237,7 +286,14 @@ export const openResultDialog = async (editor, resultText, opts = {}) => {
   }
 
   const safeText = escapeHtml(outputText);
-  const previewSrc = playableUrl || (isAudio ? audioSrc : isImage ? imageSrc : '');
+  const localAudio = isAudio ? await createLocalAudioPreview(audioSrc, audioMime) : null;
+  const previewSrc = (localAudio && localAudio.url)
+    || playableUrl
+    || (isAudio ? audioSrc : isImage ? imageSrc : '');
+  const previewAudioMime = isAudio
+    ? ((localAudio && localAudio.mime) || playableAudioMime(previewSrc, audioMime))
+    : audioMime;
+  let audioFrameUrl = '';
 
   // Template context: pass type flags and primitive data so <audio>/<img>/<video> are in the template (not raw HTML).
   const cardContext = {};
@@ -245,20 +301,18 @@ export const openResultDialog = async (editor, resultText, opts = {}) => {
     cardContext.isAudio = true;
     cardContext.wrapperClass = 'dp-ai-result-audio';
     if (previewSrc) {
-      // Tiny dialog may strip <audio>. Render iframe document via Mustache template.
       const audioDoc = await Templates.renderForPromise(
         'tiny_haccgen_extender/components/audio-iframe-document',
         {
           audiosrc: previewSrc,
-          audiomime: audioMime || 'audio/mpeg',
+          audiomime: previewAudioMime,
         }
       );
       if (audioDoc.js) {
         Templates.runTemplateJS(audioDoc.js);
       }
-      cardContext.audioIframeSrc = 'data:text/html;charset=utf-8,' + encodeURIComponent(audioDoc.html);
-      cardContext.audioSrc = previewSrc;
-      cardContext.audioMime = audioMime || 'audio/mpeg';
+      audioFrameUrl = URL.createObjectURL(new Blob([audioDoc.html], { type: 'text/html' }));
+      cardContext.audioIframeSrc = audioFrameUrl;
     }
   } else if (isImage) {
     cardContext.isImage = true;
@@ -269,36 +323,6 @@ export const openResultDialog = async (editor, resultText, opts = {}) => {
   } else if (isVideo) {
     cardContext.isVideo = Boolean(playableUrl);
     cardContext.videoUrl = playableUrl || '';
-  } else if (isInteractiveHtml) {
-    cardContext.isInteractiveHtml = true;
-    cardContext.wrapperClass = 'dp-ai-result-interactive';
-    cardContext.previewHint = interactivePreviewHint;
-    const iframeDoc =
-      '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">' +
-      '<meta name="viewport" content="width=device-width, initial-scale=1">' +
-      '<title>Interactive preview</title>' +
-      '<style>html,body{margin:0;padding:12px;font-family:system-ui,-apple-system,' +
-      '"Segoe UI",Roboto,Arial,sans-serif;background:#fff;color:#102a43;}' +
-      '.dp-ai-interactive{max-width:100%}' +
-      'details{margin:0 0 8px;border:1px solid rgba(16,42,67,.14);border-radius:10px;' +
-      'overflow:hidden}summary{cursor:pointer;padding:10px 12px;font-weight:700}' +
-      'details[open] summary{border-bottom:1px solid rgba(16,42,67,.1)}' +
-      'details > *:not(summary){padding:10px 12px}' +
-      '.dp-ai-interactive--tabs input[type=radio]{position:absolute;width:1px;height:1px;opacity:0;clip:rect(0,0,0,0)}' +
-      '.dp-ai-interactive--tabs input[type=radio]+label{display:inline-block;margin:0 6px 8px 0;padding:8px 12px;border-radius:8px;border:1px solid rgba(16,42,67,.14);cursor:pointer}' +
-      '.dp-ai-interactive--tabs input[type=radio]:checked+label{font-weight:700;border-color:rgba(15,108,191,.65);background:rgba(15,108,191,.08)}' +
-      '.dp-ai-interactive--tabs input[type=radio]+label+*{display:none;margin:0 0 12px;padding:10px 12px;border:1px solid rgba(16,42,67,.12);border-radius:10px}' +
-      '.dp-ai-interactive--tabs input[type=radio]:checked+label+*{display:block}' +
-      '.dp-ai-interactive--timeline{border-left:3px solid rgba(15,108,191,.35);padding-left:16px}' +
-      '.dp-ai-interactive--comparison,.dp-ai-interactive--cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px}' +
-      '.dp-ai-interactive--comparison>*,.dp-ai-interactive--cards>*{border:1px solid rgba(16,42,67,.14);border-radius:10px;padding:12px}' +
-      '.dp-ai-interactive--callouts>*{margin:0 0 10px;padding:12px;border-radius:10px;border-left:4px solid rgba(15,108,191,.65);background:rgba(15,108,191,.06)}' +
-      '.dp-ai-interactive--checklist label{display:flex;align-items:flex-start;gap:8px;margin:0 0 8px}' +
-      '.dp-ai-interactive--quiz>*{margin:0 0 12px;padding:12px;border:1px solid rgba(16,42,67,.14);border-radius:10px}' +
-      '</style></head><body>' +
-      (interactiveHtml || '<p></p>') +
-      '</body></html>';
-    cardContext.interactiveIframeSrc = 'data:text/html;charset=utf-8,' + encodeURIComponent(iframeDoc);
   } else {
     cardContext.isText = true;
     cardContext.textContent = safeText;
@@ -345,23 +369,6 @@ export const openResultDialog = async (editor, resultText, opts = {}) => {
           ? [{ type: 'custom', name: 'replaceSelectionMedia', text: btnReplaceSelection, primary: true }]
           : []),
       ]
-    : isInteractiveHtml
-    ? [
-        { type: 'custom', name: 'close', text: btnClose },
-        ...(onTryAnother
-          ? [{ type: 'custom', name: 'tryAnother', text: btnTryAnotherLayout }]
-          : []),
-        { type: 'custom', name: 'editInteractive', text: btnEditInteractive },
-        {
-          type: 'custom',
-          name: 'insertBelow',
-          text: btnInsertIntoEditor,
-          primary: !hasSelection,
-        },
-        ...(hasSelection
-          ? [{ type: 'custom', name: 'replaceSelection', text: btnReplaceSelection, primary: true }]
-          : []),
-      ]
     : [
         { type: 'custom', name: 'close', text: btnClose },
         { type: 'custom', name: 'copy', text: btnCopy },
@@ -397,6 +404,12 @@ export const openResultDialog = async (editor, resultText, opts = {}) => {
     },
     onClose: () => {
       removeKeyboardGuard();
+      if (audioFrameUrl) {
+        URL.revokeObjectURL(audioFrameUrl);
+      }
+      if (localAudio && typeof localAudio.revoke === 'function') {
+        localAudio.revoke();
+      }
     },
     onAction: async (api, details) => {
       Log.debug('[tiny_haccgen_extender:result_dialog] onAction name=' + (details?.name || ''));
@@ -408,15 +421,6 @@ export const openResultDialog = async (editor, resultText, opts = {}) => {
 
       if (details.name === 'back' && typeof goBack === 'function') {
         goBack(api);
-        return;
-      }
-
-      if (details.name === 'tryAnother' && onTryAnother) {
-        try {
-          await onTryAnother(api);
-        } catch (e) {
-          moodleAlert(title, e?.message ? e.message : String(e));
-        }
         return;
       }
 
@@ -432,28 +436,9 @@ export const openResultDialog = async (editor, resultText, opts = {}) => {
           return;
         }
 
-        if (details.name === 'editInteractive') {
-          try {
-            api.close();
-            await openInteractiveHtmlEditor(editor, {
-              html: interactiveHtml,
-              elementType: opts.elementType || '',
-              hasSelection,
-            });
-          } catch (e) {
-            Log.debug('[tiny_haccgen_extender:result_dialog] editInteractive failed ' + (e?.message || String(e)));
-            moodleAlert(title, e?.message ? e.message : String(e));
-          }
-          return;
-        }
-
         if (details.name === 'insertBelow') {
           try {
-            if (isInteractiveHtml) {
-              insertInteractiveHtml(editor, interactiveHtml);
-            } else {
-              insertBelowSelection(editor, textToHtml(outputText));
-            }
+            insertBelowSelection(editor, textToHtml(outputText));
             Log.debug('[tiny_haccgen_extender:result_dialog] insertBelow succeeded');
             api.close();
           } catch (e) {
@@ -465,10 +450,8 @@ export const openResultDialog = async (editor, resultText, opts = {}) => {
 
         if (details.name === 'replaceSelection') {
           try {
-            if (isInteractiveHtml) {
-              replaceWithInteractiveHtml(editor, interactiveHtml);
-            } else if (isVideo && outputText.trim()) {
-              replaceWithVideoHtml(editor, outputText.trim());
+            if (isVideo && outputText.trim()) {
+              replaceWithVideoHtml(editor, outputText.trim(), localizedVideoTracks);
             } else {
               editor.selection.setContent(textToHtml(outputText));
             }
@@ -501,9 +484,9 @@ export const openResultDialog = async (editor, resultText, opts = {}) => {
             await moodleAlert(title, errMediaPrepareInsert);
             return;
           }
-          if (isAudio) { insertAudioHtml(editor, urlToInsert, audioMime); }
+          if (isAudio) { insertAudioHtml(editor, urlToInsert, previewAudioMime); }
           if (isImage) { insertImageHtml(editor, urlToInsert); }
-          if (isVideo) { insertVideoHtml(editor, urlToInsert); }
+          if (isVideo) { insertVideoHtml(editor, urlToInsert, localizedVideoTracks); }
           Log.debug('[tiny_haccgen_extender:result_dialog] insertBelowMedia succeeded');
           api.close();
         } catch (e) {
@@ -528,9 +511,9 @@ export const openResultDialog = async (editor, resultText, opts = {}) => {
             await moodleAlert(title, errMediaPrepareReplace);
             return;
           }
-          if (isAudio) { replaceWithAudioHtml(editor, urlToReplace, audioMime); }
+          if (isAudio) { replaceWithAudioHtml(editor, urlToReplace, previewAudioMime); }
           if (isImage) { replaceWithImageHtml(editor, urlToReplace); }
-          if (isVideo) { replaceWithVideoHtml(editor, urlToReplace); }
+          if (isVideo) { replaceWithVideoHtml(editor, urlToReplace, localizedVideoTracks); }
           Log.debug('[tiny_haccgen_extender:result_dialog] replaceSelectionMedia succeeded');
           api.close();
         } catch (e) {

@@ -30,7 +30,7 @@ import { showLoadingOverlay } from '../loadingOverlay';
 import { openResultDialog } from './resultDialog/resultDialog';
 import { resolveDraftItemId } from '../draftItemid';
 
-const OPT_CACHE_KEY = 'dp_ai_videogen_opts_v8';
+const OPT_CACHE_KEY = 'dp_ai_videogen_opts_v9';
 const OPT_CACHE_TTL_MS = 3 * 60 * 60 * 1000;
 
 const DEFAULT_LEGACY_OPTIONS = {
@@ -48,54 +48,6 @@ const DEFAULT_LEGACY_OPTIONS = {
   ],
 };
 
-const DEFAULT_NATIVE_LANGUAGES = [
-  { id: '', name: 'Default (English, India)' },
-  { id: 'english', name: 'English' },
-  { id: 'hindi', name: 'Hindi' },
-  { id: 'bengali', name: 'Bengali / Bangla' },
-  { id: 'marathi', name: 'Marathi' },
-  { id: 'tamil', name: 'Tamil' },
-  { id: 'telugu', name: 'Telugu' },
-  { id: 'gujarati', name: 'Gujarati' },
-  { id: 'kannada', name: 'Kannada' },
-  { id: 'malayalam', name: 'Malayalam' },
-  { id: 'punjabi', name: 'Punjabi' },
-  { id: 'urdu', name: 'Urdu' },
-  { id: 'odia', name: 'Odia / Oriya' },
-  { id: 'assamese', name: 'Assamese' },
-  { id: 'konkani', name: 'Konkani' },
-  { id: 'nepali', name: 'Nepali' },
-];
-
-const DEFAULT_NATIVE_LANGUAGE_CODES = [
-  { id: 'en-IN', name: 'English (India)' },
-  { id: 'en-US', name: 'English (US)' },
-  { id: 'en-GB', name: 'English (UK)' },
-  { id: 'en-AU', name: 'English (Australia)' },
-  { id: 'hi-IN', name: 'Hindi (India)' },
-  { id: 'mr-IN', name: 'Marathi (India)' },
-  { id: 'ta-IN', name: 'Tamil (India)' },
-  { id: 'te-IN', name: 'Telugu (India)' },
-  { id: 'bn-BD', name: 'Bangla (Bangladesh)' },
-  { id: 'ar-EG', name: 'Arabic (Egypt)' },
-  { id: 'nl-NL', name: 'Dutch (Netherlands)' },
-  { id: 'fr-FR', name: 'French (France)' },
-  { id: 'de-DE', name: 'German (Germany)' },
-  { id: 'id-ID', name: 'Indonesian (Indonesia)' },
-  { id: 'it-IT', name: 'Italian (Italy)' },
-  { id: 'ja-JP', name: 'Japanese (Japan)' },
-  { id: 'ko-KR', name: 'Korean (South Korea)' },
-  { id: 'pl-PL', name: 'Polish (Poland)' },
-  { id: 'pt-BR', name: 'Portuguese (Brazil)' },
-  { id: 'ro-RO', name: 'Romanian (Romania)' },
-  { id: 'ru-RU', name: 'Russian (Russia)' },
-  { id: 'es-ES', name: 'Spanish (Spain)' },
-  { id: 'th-TH', name: 'Thai (Thailand)' },
-  { id: 'tr-TR', name: 'Turkish (Turkey)' },
-  { id: 'uk-UA', name: 'Ukrainian (Ukraine)' },
-  { id: 'vi-VN', name: 'Vietnamese (Vietnam)' },
-];
-
 const DEFAULT_NATIVE_OPTIONS = {
   provider: 'native_video',
   use_storyboard: [
@@ -105,7 +57,7 @@ const DEFAULT_NATIVE_OPTIONS = {
     },
     {
       id: 'false',
-      name: 'Use my narration / Transcribe and Prompt (uses your text; one scene and image prompt per sentence)',
+      name: 'Use my narration / Transcribe and Prompt (uses your text for video generation only)',
     },
   ],
   race: [
@@ -115,16 +67,14 @@ const DEFAULT_NATIVE_OPTIONS = {
   ],
   image_source: [
     { id: '', name: 'Default' },
-    { id: 'pexels', name: 'Pexels stock' },
+    { id: 'pexels', name: 'Stock Library' },
     { id: 'llm', name: 'AI-generated only' },
   ],
   voice_gender: [
     { id: '', name: 'Default' },
-    { id: 'male', name: 'Male (Puck)' },
-    { id: 'female', name: 'Female (Kore)' },
+    { id: 'male', name: 'Male' },
+    { id: 'female', name: 'Female' },
   ],
-  language: DEFAULT_NATIVE_LANGUAGES,
-  language_code: DEFAULT_NATIVE_LANGUAGE_CODES,
 };
 
 const toArray = (v) => (Array.isArray(v) ? v : []);
@@ -197,8 +147,6 @@ const sanitizeNativeOptions = (raw) => {
     race: pick('race', DEFAULT_NATIVE_OPTIONS.race),
     image_source: pick('image_source', DEFAULT_NATIVE_OPTIONS.image_source),
     voice_gender: pick('voice_gender', DEFAULT_NATIVE_OPTIONS.voice_gender),
-    language: pick('language', DEFAULT_NATIVE_OPTIONS.language),
-    language_code: pick('language_code', DEFAULT_NATIVE_OPTIONS.language_code),
   };
 };
 
@@ -321,68 +269,243 @@ const escapeHtml = (value) =>
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
 
-const fieldHelp = (text) => ({
-  type: 'htmlpanel',
-  html: `<p class="dp-ai-x-field-help">${escapeHtml(text)}</p>`,
-});
+const renderFieldHelpBlock = async (label, helpText, fieldName) => {
+  const render = await Templates.renderForPromise(
+    'tiny_haccgen_extender/components/inline-help-icon',
+    {
+      label,
+      helptitle: label,
+      helptext: helpText || '',
+      hashelp: Boolean(helpText),
+      fieldname: fieldName || '',
+    }
+  );
+  if (render.js) {
+    Templates.runTemplateJS(render.js);
+  }
+  return render.html;
+};
 
-const buildNativeFormItems = (labels, items) => [
+const getLatestDialogRoot = () => {
+  const dialogs = document.querySelectorAll('.tox-dialog');
+  return dialogs.length ? dialogs[dialogs.length - 1] : null;
+};
+
+const setFieldVisible = (fieldName, visible) => {
+  const dialog = getLatestDialogRoot();
+  if (!dialog || !fieldName) {
+    return;
+  }
+  const escaped = (window.CSS && typeof window.CSS.escape === 'function')
+    ? window.CSS.escape(fieldName)
+    : fieldName;
+  const block = dialog.querySelector(`.dp-ai-x-field--${escaped}`)
+    || dialog.querySelector(`[data-field="${escaped}"]`);
+  if (!block) {
+    return;
+  }
+  const labelGroup = block.closest('.tox-form__group') || block.parentElement;
+  const inputGroup = labelGroup?.nextElementSibling;
+  [block, labelGroup, inputGroup].forEach((el) => {
+    if (!el) {
+      return;
+    }
+    el.classList.toggle('dp-ai-x-field-hidden', !visible);
+  });
+};
+
+/**
+ * Show or hide native-provider fields that do not apply to the current mode.
+ *
+ * Additional context is only used with AI storyboard. Race and image style
+ * do not apply when scene images come from Pexels stock.
+ *
+ * @param {Object} api TinyMCE dialog API.
+ * @param {Object} data Current dialog data.
+ */
+const applyNativeFieldConstraints = (api, data) => {
+  const useMyNarration = String(data.use_storyboard) === 'false';
+  setFieldVisible('additional_prompt', !useMyNarration);
+
+  const isPexels = data.image_source === 'pexels';
+  const isAiOnly = data.image_source === 'llm';
+  setFieldVisible('race', !isPexels);
+  setFieldVisible('external_details_prompt', !isPexels);
+
+  const nextData = { ...data };
+  let changed = false;
+
+  if (useMyNarration && (data.additional_prompt || '').trim() !== '') {
+    nextData.additional_prompt = '';
+    changed = true;
+  }
+  if (isPexels) {
+    if (nextData.race !== '') {
+      nextData.race = '';
+      changed = true;
+    }
+    if (nextData.external_details_prompt !== '') {
+      nextData.external_details_prompt = '';
+      changed = true;
+    }
+  } else if (isAiOnly && !nextData.external_details_prompt?.trim()) {
+    nextData.external_details_prompt = 'Watercolor style';
+    changed = true;
+  }
+
+  if (changed && typeof api.setData === 'function') {
+    try {
+      api.setData(nextData);
+    } catch (e) {
+      // Ignore until the dialog is fully mounted.
+    }
+  }
+};
+
+const closeDialogHelp = (dialogRoot) => {
+  const root = dialogRoot || document;
+  root.querySelectorAll('.dp-ai-x-help-popover').forEach((el) => {
+    el.classList.remove('is-open');
+    el.setAttribute('hidden', 'hidden');
+  });
+};
+
+const toggleFieldHelp = (trigger) => {
+  const block = trigger.closest('.dp-ai-x-field-help-block');
+  const dialog = trigger.closest('.tox-dialog');
+  const popover = block?.querySelector('.dp-ai-x-help-popover');
+  if (!popover) {
+    return;
+  }
+  const opening = !popover.classList.contains('is-open');
+  if (dialog) {
+    closeDialogHelp(dialog);
+  }
+  if (opening) {
+    popover.classList.add('is-open');
+    popover.removeAttribute('hidden');
+  }
+};
+
+let helpListenerBound = false;
+
+const ensureHelpClickListener = () => {
+  if (helpListenerBound) {
+    return;
+  }
+  helpListenerBound = true;
+
+  document.addEventListener('click', (event) => {
+    const trigger = event.target.closest?.('.dp-ai-x-inline-help');
+    if (trigger && event.target.closest('.tox-dialog')) {
+      event.preventDefault();
+      event.stopPropagation();
+      toggleFieldHelp(trigger);
+      return;
+    }
+    if (!event.target.closest?.('.dp-ai-x-help-popover')) {
+      closeDialogHelp();
+    }
+  }, true);
+
+  document.addEventListener('keydown', (event) => {
+    const trigger = event.target.closest?.('.dp-ai-x-inline-help');
+    if (!trigger || !event.target.closest('.tox-dialog')) {
+      return;
+    }
+    if (event.key !== 'Enter' && event.key !== ' ') {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    toggleFieldHelp(trigger);
+  }, true);
+};
+
+/**
+ * Field label row with Moodle help icon; help text opens in-dialog on click.
+ *
+ * @param {Object} field TinyMCE dialog field spec (must include name and label).
+ * @param {string} helpHtml Pre-rendered help icon markup.
+ * @returns {Object[]} Dialog body items for the label row and field.
+ */
+const fieldWithHelp = (field, helpHtml) => [
   {
-    type: 'selectbox',
-    name: 'use_storyboard',
-    label: labels.fieldUseStoryboard,
-    items: items.useStoryboard,
+    type: 'htmlpanel',
+    presets: 'presentation',
+    html: helpHtml || [
+      `<div class="dp-ai-x-field-help-block dp-ai-x-field--${escapeHtml(field.name)}">`,
+      `<span class="dp-ai-x-field-label-text">${escapeHtml(field.label)}</span>`,
+      '</div>',
+    ].join(''),
   },
-  fieldHelp(labels.helpUseStoryboard),
-  {
-    type: 'textarea',
-    name: 'additional_prompt',
-    label: labels.fieldAdditionalPrompt,
-    placeholder: labels.placeholderAdditionalPrompt,
-  },
-  fieldHelp(labels.helpAdditionalPrompt),
-  {
-    type: 'selectbox',
-    name: 'language',
-    label: labels.fieldNativeLanguage,
-    items: items.language,
-  },
-  fieldHelp(labels.helpNativeLanguage),
-  {
-    type: 'selectbox',
-    name: 'voice_gender',
-    label: labels.fieldVoiceGender,
-    items: items.voiceGender,
-  },
-  fieldHelp(labels.helpVoiceGender),
-  {
-    type: 'textarea',
-    name: 'style_instructions',
-    label: labels.fieldStyleInstructions,
-    placeholder: labels.placeholderStyleInstructions,
-  },
-  fieldHelp(labels.helpStyleInstructions),
-  {
-    type: 'selectbox',
-    name: 'image_source',
-    label: labels.fieldImageSource,
-    items: items.imageSource,
-  },
-  fieldHelp(labels.helpImageSource),
-  {
-    type: 'selectbox',
-    name: 'race',
-    label: labels.fieldRace,
-    items: items.race,
-  },
-  fieldHelp(labels.helpRace),
-  {
-    type: 'textarea',
-    name: 'external_details_prompt',
-    label: labels.fieldExternalDetailsPrompt,
-    placeholder: labels.placeholderExternalDetailsPrompt,
-  },
-  fieldHelp(labels.helpExternalDetailsPrompt),
+  { ...field, label: '' },
+];
+
+const buildNativeFormItems = (labels, items, helpIcons) => [
+  ...fieldWithHelp(
+    {
+      type: 'selectbox',
+      name: 'use_storyboard',
+      label: labels.fieldUseStoryboard,
+      items: items.useStoryboard,
+    },
+    helpIcons.use_storyboard
+  ),
+  ...fieldWithHelp(
+    {
+      type: 'textarea',
+      name: 'additional_prompt',
+      label: labels.fieldAdditionalPrompt,
+      placeholder: labels.placeholderAdditionalPrompt,
+    },
+    helpIcons.additional_prompt
+  ),
+  ...fieldWithHelp(
+    {
+      type: 'selectbox',
+      name: 'voice_gender',
+      label: labels.fieldVoiceGender,
+      items: items.voiceGender,
+    },
+    helpIcons.voice_gender
+  ),
+  ...fieldWithHelp(
+    {
+      type: 'textarea',
+      name: 'style_instructions',
+      label: labels.fieldStyleInstructions,
+      placeholder: labels.placeholderStyleInstructions,
+    },
+    helpIcons.style_instructions
+  ),
+  ...fieldWithHelp(
+    {
+      type: 'selectbox',
+      name: 'image_source',
+      label: labels.fieldImageSource,
+      items: items.imageSource,
+    },
+    helpIcons.image_source
+  ),
+  ...fieldWithHelp(
+    {
+      type: 'selectbox',
+      name: 'race',
+      label: labels.fieldRace,
+      items: items.race,
+    },
+    helpIcons.race
+  ),
+  ...fieldWithHelp(
+    {
+      type: 'textarea',
+      name: 'external_details_prompt',
+      label: labels.fieldExternalDetailsPrompt,
+      placeholder: labels.placeholderExternalDetailsPrompt,
+    },
+    helpIcons.external_details_prompt
+  ),
 ];
 
 const buildLegacyFormItems = (labels, items) => [
@@ -446,7 +569,6 @@ export const buildVideoGenerationTemplateConfig = async ({ editor, selectionText
   const fieldRace = await getString('field_race', component);
   const fieldImageSource = await getString('field_image_source', component);
   const fieldVoiceGender = await getString('field_voice_gender', component);
-  const fieldNativeLanguage = await getString('field_native_language', component);
   const fieldAdditionalPrompt = await getString('field_additional_prompt', component);
   const placeholderAdditionalPrompt = await getString('placeholder_additional_prompt', component);
   const fieldStyleInstructions = await getString('field_style_instructions', component);
@@ -458,7 +580,6 @@ export const buildVideoGenerationTemplateConfig = async ({ editor, selectionText
   const helpAdditionalPrompt = await getString('help_additional_prompt', component);
   const helpRace = await getString('help_race', component);
   const helpImageSource = await getString('help_image_source', component);
-  const helpNativeLanguage = await getString('help_native_language', component);
   const helpVoiceGender = await getString('help_voice_gender', component);
   const helpStyleInstructions = await getString('help_style_instructions', component);
   const helpExternalDetailsPrompt = await getString('help_external_details_prompt', component);
@@ -539,7 +660,6 @@ export const buildVideoGenerationTemplateConfig = async ({ editor, selectionText
     fieldRace,
     fieldImageSource,
     fieldVoiceGender,
-    fieldNativeLanguage,
     fieldAdditionalPrompt,
     fieldStyleInstructions,
     fieldExternalDetailsPrompt,
@@ -550,7 +670,6 @@ export const buildVideoGenerationTemplateConfig = async ({ editor, selectionText
     helpAdditionalPrompt,
     helpRace,
     helpImageSource,
-    helpNativeLanguage,
     helpVoiceGender,
     helpStyleInstructions,
     helpExternalDetailsPrompt,
@@ -558,21 +677,58 @@ export const buildVideoGenerationTemplateConfig = async ({ editor, selectionText
     valueNo,
   };
 
-  const formItems = isNative
-    ? buildNativeFormItems(labels, {
+  let formItems;
+  let nativeHelpIcons = {};
+  if (isNative) {
+    const [
+      promptHelp,
+      useStoryboardHelp,
+      additionalPromptHelp,
+      voiceGenderHelp,
+      styleInstructionsHelp,
+      imageSourceHelp,
+      raceHelp,
+      externalDetailsHelp,
+    ] = await Promise.all([
+      renderFieldHelpBlock(fieldPrompt, helpVideoPrompt, 'prompt'),
+      renderFieldHelpBlock(fieldUseStoryboard, helpUseStoryboard, 'use_storyboard'),
+      renderFieldHelpBlock(fieldAdditionalPrompt, helpAdditionalPrompt, 'additional_prompt'),
+      renderFieldHelpBlock(fieldVoiceGender, helpVoiceGender, 'voice_gender'),
+      renderFieldHelpBlock(fieldStyleInstructions, helpStyleInstructions, 'style_instructions'),
+      renderFieldHelpBlock(fieldImageSource, helpImageSource, 'image_source'),
+      renderFieldHelpBlock(fieldRace, helpRace, 'race'),
+      renderFieldHelpBlock(
+        fieldExternalDetailsPrompt,
+        helpExternalDetailsPrompt,
+        'external_details_prompt'
+      ),
+    ]);
+    nativeHelpIcons = {
+      prompt: promptHelp,
+      use_storyboard: useStoryboardHelp,
+      additional_prompt: additionalPromptHelp,
+      voice_gender: voiceGenderHelp,
+      style_instructions: styleInstructionsHelp,
+      image_source: imageSourceHelp,
+      race: raceHelp,
+      external_details_prompt: externalDetailsHelp,
+    };
+    ensureHelpClickListener();
+    formItems = buildNativeFormItems(labels, {
       useStoryboard: toSelectItems(nativeOpts.use_storyboard),
       race: toSelectItems(nativeOpts.race),
       imageSource: toSelectItems(nativeOpts.image_source),
       voiceGender: toSelectItems(nativeOpts.voice_gender),
-      language: toSelectItems(nativeOpts.language),
-    })
-    : buildLegacyFormItems(labels, {
+    }, nativeHelpIcons);
+  } else {
+    formItems = buildLegacyFormItems(labels, {
       language: toSelectItems(legacyOpts.language),
       voiceId: toSelectItems(legacyOpts.voice_id),
       aspectRatios: toSelectItems(legacyOpts.aspect_ratios),
       outputFormat: toSelectItems(legacyOpts.output_format),
       fonts: toSelectItems(legacyOpts.fonts),
     });
+  }
 
   const initialData = isNative
     ? {
@@ -580,11 +736,10 @@ export const buildVideoGenerationTemplateConfig = async ({ editor, selectionText
       use_storyboard: nativeOpts.use_storyboard[0]?.id || 'true',
       additional_prompt: '',
       race: nativeOpts.race[0]?.id || '',
-      image_source: nativeOpts.image_source[0]?.id || '',
+      image_source: 'llm',
       voice_gender: nativeOpts.voice_gender[0]?.id || '',
-      language: nativeOpts.language[0]?.id || '',
       style_instructions: '',
-      external_details_prompt: '',
+      external_details_prompt: 'Watercolor style',
     }
     : {
       prompt: (selectionText || '').trim(),
@@ -612,13 +767,22 @@ export const buildVideoGenerationTemplateConfig = async ({ editor, selectionText
           type: 'bar',
           items: [{ type: 'button', name: 'back', text: btnBack, buttonType: 'secondary' }],
         },
-        {
-          type: 'textarea',
-          name: 'prompt',
-          label: fieldPrompt,
-          placeholder: isNative ? placeholderNativePrompt : placeholderVideoPrompt,
-        },
-        ...(isNative ? [fieldHelp(helpVideoPrompt)] : []),
+        ...(isNative
+          ? fieldWithHelp(
+            {
+              type: 'textarea',
+              name: 'prompt',
+              label: fieldPrompt,
+              placeholder: placeholderNativePrompt,
+            },
+            nativeHelpIcons.prompt
+          )
+          : [{
+            type: 'textarea',
+            name: 'prompt',
+            label: fieldPrompt,
+            placeholder: placeholderVideoPrompt,
+          }]),
         ...formItems,
       ],
     },
@@ -629,6 +793,24 @@ export const buildVideoGenerationTemplateConfig = async ({ editor, selectionText
       { type: 'cancel', text: btnCancel },
       { type: 'custom', name: 'generate', text: btnRun, primary: true },
     ],
+
+    onOpen: (api) => {
+      if (!isNative || !api) {
+        return;
+      }
+      ensureHelpClickListener();
+      applyNativeFieldConstraints(api, api.getData());
+    },
+
+    __dpAfterOpen: (api) => {
+      if (!isNative) {
+        return;
+      }
+      ensureHelpClickListener();
+      if (api && typeof api.getData === 'function') {
+        applyNativeFieldConstraints(api, api.getData());
+      }
+    },
 
     onAction: (api, details) => {
       if (details.name === 'back') {
@@ -717,7 +899,6 @@ export const buildVideoGenerationTemplateConfig = async ({ editor, selectionText
           estimatedSeconds = estimateDurationSeconds(inputText);
           const useStoryboard = data.use_storyboard || 'true';
           const additionalPrompt = (data.additional_prompt || '').trim();
-          const language = (data.language || '').trim();
           const styleInstructions = (data.style_instructions || '').trim();
           const externalDetailsPrompt = (data.external_details_prompt || '').trim();
           const nativePayload = {
@@ -730,16 +911,13 @@ export const buildVideoGenerationTemplateConfig = async ({ editor, selectionText
             duration_seconds: estimatedSeconds,
             usage_input: inputText,
           };
-          if (language !== '') {
-            nativePayload.language = language;
-          }
           if (styleInstructions !== '') {
             nativePayload.style_instructions = styleInstructions;
           }
           if (externalDetailsPrompt !== '') {
             nativePayload.external_details_prompt = externalDetailsPrompt;
           }
-          if (useStoryboard === 'false' && additionalPrompt !== '') {
+          if (useStoryboard !== 'false' && additionalPrompt !== '') {
             nativePayload.additional_prompt = additionalPrompt;
           }
           optionsjson = JSON.stringify(nativePayload, null, 2);
@@ -844,6 +1022,15 @@ export const buildVideoGenerationTemplateConfig = async ({ editor, selectionText
           await moodleAlert(title, e?.message || String(e));
         }
       })();
+    },
+    onChange: (api, details) => {
+      if (!isNative) {
+        return;
+      }
+      if (details.name !== 'image_source' && details.name !== 'use_storyboard') {
+        return;
+      }
+      applyNativeFieldConstraints(api, api.getData());
     },
   };
 };

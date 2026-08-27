@@ -128,3 +128,61 @@ const deepFindMedia = (node, kind, depth = 0) => {
 export const getAudioFromResult = (result) => deepFindMedia(result, 'audio');
 export const getImageFromResult = (result) => deepFindMedia(result, 'image');
 export const getVideoFromResult = (result) => deepFindMedia(result, 'video');
+
+const normalizeTrackNode = (node) => {
+  if (!node || typeof node !== 'object') {
+    return null;
+  }
+  const url = String(node.url || node.src || node.href || '').trim();
+  if (!url || !/^https?:\/\//i.test(url)) {
+    return null;
+  }
+  return {
+    kind: String(node.kind || 'captions'),
+    url,
+    mime: String(node.mime || node.mimetype || 'text/vtt'),
+    srclang: String(node.srclang || node.lang || 'en'),
+    label: String(node.label || 'Captions'),
+    default: Boolean(node.default),
+  };
+};
+
+const parseResultRoot = (result) => {
+  if (typeof result === 'string') {
+    return tryParseJson(result) || { outputText: result };
+  }
+  return result && typeof result === 'object' ? result : {};
+};
+
+/**
+ * Extract caption/subtitle tracks bundled with a native video result.
+ *
+ * @param {*} result API response payload.
+ * @returns {Array<{kind:string,url:string,mime:string,srclang:string,label:string,default:boolean}>}
+ */
+export const getVideoTracksFromResult = (result) => {
+  const root = parseResultRoot(result);
+  const tracks = [];
+
+  const media = Array.isArray(root.media) ? root.media : [];
+  for (const item of media) {
+    const type = String(item?.type || '').toLowerCase();
+    if (type === 'video' && Array.isArray(item.tracks)) {
+      item.tracks.forEach((track) => {
+        const normalized = normalizeTrackNode(track);
+        if (normalized) {
+          tracks.push(normalized);
+        }
+      });
+      continue;
+    }
+    if (['captions', 'caption', 'subtitle', 'subtitles', 'track'].includes(type)) {
+      const normalized = normalizeTrackNode(item);
+      if (normalized) {
+        tracks.push(normalized);
+      }
+    }
+  }
+
+  return tracks;
+};

@@ -34,6 +34,10 @@
 {{/hasTimestamps}}
 <div class="dp-ai-result-text dp-ai-result-card{{#wrapperClass}} {{wrapperClass}}{{/wrapperClass}}{{#isText}} dp-ai-result-text-scroll{{/isText}}" data-text="result">
     <div class="dp-ai-result-body">
+    {{#isAudio}}
+    <div class="dp-ai-audio-preview-host"></div>
+    {{/isAudio}}
+    {{^isAudio}}
     {{#audioIframeSrc}}
     <iframe class="dp-audio-iframe" title="Audio player" width="100%" height="80" src="{{{audioIframeSrc}}}"></iframe>
     {{/audioIframeSrc}}
@@ -42,16 +46,6 @@
     {{{resultText}}}
     {{/resultText}}
     {{^resultText}}
-    {{#isAudio}}
-    {{#audioHtml}}
-    {{{audioHtml}}}
-    {{/audioHtml}}
-    {{^audioHtml}}
-    {{#audioSrc}}
-    <audio class="dp-audio-player" controls preload="metadata" src="{{{audioSrc}}}">Your browser does not support audio.</audio>
-    {{/audioSrc}}
-    {{/audioHtml}}
-    {{/isAudio}}
     {{#isImage}}
     <img src="{{imageSrc}}" class="mw-100 dp-ai-result-media" alt="Generated image">
     {{/isImage}}
@@ -63,14 +57,6 @@
     <div class="dp-ai-result-raw-response-label">Raw response (first 500 chars):</div>
     <pre class="dp-ai-result-raw-response-preview">{{imageErrorPreview}}</pre>
     {{/isImageIntentNoImage}}
-    {{#isInteractiveHtml}}
-    {{#previewHint}}
-    <p class="dp-ai-interactive-hint">{{previewHint}}</p>
-    {{/previewHint}}
-    {{#interactiveIframeSrc}}
-    <iframe class="dp-ai-interactive-iframe" title="Interactive preview" width="100%" height="360" src="{{{interactiveIframeSrc}}}"></iframe>
-    {{/interactiveIframeSrc}}
-    {{/isInteractiveHtml}}
     {{#isText}}
     {{#beautifiedContent}}
     <div class="dp-ai-result-html">{{{beautifiedContent}}}</div>
@@ -81,6 +67,7 @@
     {{/isText}}
     {{/resultText}}
     {{/audioIframeSrc}}
+    {{/isAudio}}
     </div>
     {{#errorMessage}}
     <div class="dp-ai-result-error">{{errorMessage}}</div>

@@ -174,59 +174,13 @@ class make_request extends \external_api {
                 ],
                 'image_source' => [
                     ['id' => '', 'name' => 'Default'],
-                    ['id' => 'pexels', 'name' => 'Pexels stock'],
+                    ['id' => 'pexels', 'name' => 'Stock Library'],
                     ['id' => 'llm', 'name' => 'AI-generated only'],
                 ],
                 'voice_gender' => [
                     ['id' => '', 'name' => 'Default'],
-                    ['id' => 'male', 'name' => 'Male (Puck)'],
-                    ['id' => 'female', 'name' => 'Female (Kore)'],
-                ],
-                'language' => [
-                    ['id' => '', 'name' => 'Default (English, India)'],
-                    ['id' => 'english', 'name' => 'English'],
-                    ['id' => 'hindi', 'name' => 'Hindi'],
-                    ['id' => 'bengali', 'name' => 'Bengali / Bangla'],
-                    ['id' => 'marathi', 'name' => 'Marathi'],
-                    ['id' => 'tamil', 'name' => 'Tamil'],
-                    ['id' => 'telugu', 'name' => 'Telugu'],
-                    ['id' => 'gujarati', 'name' => 'Gujarati'],
-                    ['id' => 'kannada', 'name' => 'Kannada'],
-                    ['id' => 'malayalam', 'name' => 'Malayalam'],
-                    ['id' => 'punjabi', 'name' => 'Punjabi'],
-                    ['id' => 'urdu', 'name' => 'Urdu'],
-                    ['id' => 'odia', 'name' => 'Odia / Oriya'],
-                    ['id' => 'assamese', 'name' => 'Assamese'],
-                    ['id' => 'konkani', 'name' => 'Konkani'],
-                    ['id' => 'nepali', 'name' => 'Nepali'],
-                ],
-                'language_code' => [
-                    ['id' => 'en-IN', 'name' => 'English (India)'],
-                    ['id' => 'en-US', 'name' => 'English (US)'],
-                    ['id' => 'en-GB', 'name' => 'English (UK)'],
-                    ['id' => 'en-AU', 'name' => 'English (Australia)'],
-                    ['id' => 'hi-IN', 'name' => 'Hindi (India)'],
-                    ['id' => 'mr-IN', 'name' => 'Marathi (India)'],
-                    ['id' => 'ta-IN', 'name' => 'Tamil (India)'],
-                    ['id' => 'te-IN', 'name' => 'Telugu (India)'],
-                    ['id' => 'bn-BD', 'name' => 'Bangla (Bangladesh)'],
-                    ['id' => 'ar-EG', 'name' => 'Arabic (Egypt)'],
-                    ['id' => 'nl-NL', 'name' => 'Dutch (Netherlands)'],
-                    ['id' => 'fr-FR', 'name' => 'French (France)'],
-                    ['id' => 'de-DE', 'name' => 'German (Germany)'],
-                    ['id' => 'id-ID', 'name' => 'Indonesian (Indonesia)'],
-                    ['id' => 'it-IT', 'name' => 'Italian (Italy)'],
-                    ['id' => 'ja-JP', 'name' => 'Japanese (Japan)'],
-                    ['id' => 'ko-KR', 'name' => 'Korean (South Korea)'],
-                    ['id' => 'pl-PL', 'name' => 'Polish (Poland)'],
-                    ['id' => 'pt-BR', 'name' => 'Portuguese (Brazil)'],
-                    ['id' => 'ro-RO', 'name' => 'Romanian (Romania)'],
-                    ['id' => 'ru-RU', 'name' => 'Russian (Russia)'],
-                    ['id' => 'es-ES', 'name' => 'Spanish (Spain)'],
-                    ['id' => 'th-TH', 'name' => 'Thai (Thailand)'],
-                    ['id' => 'tr-TR', 'name' => 'Turkish (Turkey)'],
-                    ['id' => 'uk-UA', 'name' => 'Ukrainian (Ukraine)'],
-                    ['id' => 'vi-VN', 'name' => 'Vietnamese (Vietnam)'],
+                    ['id' => 'male', 'name' => 'Male'],
+                    ['id' => 'female', 'name' => 'Female'],
                 ],
             ];
         };
@@ -472,13 +426,10 @@ class make_request extends \external_api {
                         unset($opts['model_id'], $opts['voice_id'], $opts['target_audience']);
                         $opts['image_source'] = $normalizelist($opts['image_source'] ?? [], ['id', 'value'], ['name', 'text', 'label']);
                         $opts['voice_gender'] = $normalizelist($opts['voice_gender'] ?? [], ['id', 'value'], ['name', 'text', 'label']);
-                        $opts['language'] = $normalizelist($opts['language'] ?? [], ['id', 'value'], ['name', 'text', 'label']);
-                        $opts['language_code'] = $normalizelist($opts['language_code'] ?? [], ['id', 'code', 'languageCode', 'value'], ['name', 'languageName', 'text', 'label']);
+                        unset($opts['language'], $opts['language_code']);
                         $fallback = $optionsfallback();
-                        foreach (['use_storyboard', 'language', 'language_code'] as $key) {
-                            if (empty($opts[$key])) {
-                                $opts[$key] = $fallback[$key];
-                            }
+                        if (empty($opts['use_storyboard'])) {
+                            $opts['use_storyboard'] = $fallback['use_storyboard'];
                         }
                     } else {
                         $opts['language'] = $normalizelist($opts['language'] ?? [], ['id', 'code', 'languageCode', 'value'], ['name', 'languageName', 'text', 'label']);

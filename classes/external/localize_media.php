@@ -112,11 +112,12 @@ final class localize_media extends \external_api {
         try {
             $body = '';
             if ($isdataurl) {
-                if (!preg_match('#^data:([^;]+);base64,(.*)$#si', $params['url'], $m)) {
+                // Allow mime parameters, e.g. data:audio/L16;rate=24000;base64,...
+                if (!preg_match('#^data:([^,]*);base64,(.+)$#si', $params['url'], $m)) {
                     return ['code' => 400, 'itemid' => $effectiveitemid, 'url' => '', 'message' => 'Invalid data URL format.'];
                 }
                 $mimetypehint = trim((string)($m[1] ?? ''));
-                if ($mimetypehint !== '' && trim((string)$params['mime']) === '') {
+                if ($mimetypehint !== '') {
                     $params['mime'] = $mimetypehint;
                 }
                 $b64 = preg_replace('/\s+/', '', (string)($m[2] ?? ''));
@@ -154,6 +155,11 @@ final class localize_media extends \external_api {
                 }
             }
 
+            $mimetype = trim((string)$params['mime']);
+            $converted = self::maybe_wrap_pcm_as_wav($body, $mimetype);
+            $body = $converted['body'];
+            $mimetype = $converted['mime'];
+
             if (file_put_contents($tmp, $body) === false) {
                 return [
                     'code' => 500,
@@ -163,7 +169,6 @@ final class localize_media extends \external_api {
                 ];
             }
 
-            $mimetype = trim((string)$params['mime']);
             if ($mimetype === '') {
                 $finfo = new \finfo(FILEINFO_MIME_TYPE);
                 $detected = $finfo->file($tmp);
@@ -171,14 +176,12 @@ final class localize_media extends \external_api {
                     $mimetype = $detected;
                 }
             }
+            $mimetype = trim(explode(';', $mimetype)[0]);
             if ($mimetype === '') {
                 $mimetype = 'application/octet-stream';
             }
 
-            $ext = (string)mimeinfo('extension', $mimetype);
-            if ($ext === '') {
-                $ext = 'bin';
-            }
+            $ext = self::extension_for_mime($mimetype, (string)$params['kind']);
             $base = clean_filename($params['kind']) ?: 'media';
             $filename = $base . '_' . time() . '_' . random_int(1000, 9999) . '.' . $ext;
 
@@ -205,5 +208,99 @@ final class localize_media extends \external_api {
         } finally {
             @unlink($tmp);
         }
+    }
+
+    /**
+     * Wrap raw PCM / L16 as a WAV file so browsers can play it.
+     *
+     * @param string $body Binary payload.
+     * @param string $mimetype Full mime, possibly with rate=...
+     * @return array{body:string,mime:string}
+     */
+    private static function maybe_wrap_pcm_as_wav(string $body, string $mimetype): array {
+        $m = strtolower($mimetype);
+        $ispcm = (strpos($m, 'l16') !== false || strpos($m, 'pcm') !== false || strpos($m, 'audio/raw') !== false);
+        if (!$ispcm) {
+            return ['body' => $body, 'mime' => $mimetype];
+        }
+        if (strlen($body) >= 4 && substr($body, 0, 4) === 'RIFF') {
+            return ['body' => $body, 'mime' => 'audio/wav'];
+        }
+        $rate = 24000;
+        if (preg_match('/rate=(\d+)/i', $mimetype, $rm)) {
+            $rate = (int)$rm[1];
+        }
+        return ['body' => self::pcm_to_wav($body, $rate), 'mime' => 'audio/wav'];
+    }
+
+    /**
+     * @param string $pcm Raw 16-bit little-endian PCM.
+     * @param int $rate Sample rate.
+     * @return string WAV bytes.
+     */
+    private static function pcm_to_wav(string $pcm, int $rate = 24000): string {
+        $datasize = strlen($pcm);
+        $blockalign = 2;
+        $byterate = $rate * $blockalign;
+        $header = 'RIFF' . pack('V', 36 + $datasize) . 'WAVE';
+        $header .= 'fmt ' . pack('VvvVVvv', 16, 1, 1, $rate, $byterate, $blockalign, 16);
+        $header .= 'data' . pack('V', $datasize);
+        return $header . $pcm;
+    }
+
+    /**
+     * Map a mime type to a file extension. Audio never falls back to .bin.
+     *
+     * @param string $mimetype Base mime without parameters.
+     * @param string $kind audio|image|video|media.
+     * @return string
+     */
+    private static function extension_for_mime(string $mimetype, string $kind): string {
+        $m = strtolower($mimetype);
+        if (strpos($m, 'ogg') !== false) {
+            return 'ogg';
+        }
+        if (strpos($m, 'wav') !== false || strpos($m, 'l16') !== false
+                || strpos($m, 'pcm') !== false || strpos($m, 'audio/raw') !== false) {
+            return 'wav';
+        }
+        if (strpos($m, 'mpeg') !== false || strpos($m, 'mp3') !== false) {
+            return 'mp3';
+        }
+        if (strpos($m, 'm4a') !== false || strpos($m, 'mp4') !== false || strpos($m, 'aac') !== false) {
+            return 'm4a';
+        }
+        if (strpos($m, 'webm') !== false) {
+            return 'webm';
+        }
+        if (strpos($m, 'vtt') !== false || $kind === 'captions') {
+            return 'vtt';
+        }
+        if (strpos($m, 'subrip') !== false || strpos($m, 'srt') !== false) {
+            return 'srt';
+        }
+        if (strpos($m, 'png') !== false) {
+            return 'png';
+        }
+        if (strpos($m, 'jpeg') !== false || strpos($m, 'jpg') !== false) {
+            return 'jpg';
+        }
+        if (strpos($m, 'webp') !== false) {
+            return 'webp';
+        }
+        $ext = (string)mimeinfo('extension', $mimetype);
+        if ($ext !== '' && $ext !== 'bin') {
+            return $ext;
+        }
+        if ($kind === 'audio') {
+            return 'wav';
+        }
+        if ($kind === 'image') {
+            return 'png';
+        }
+        if ($kind === 'video') {
+            return 'mp4';
+        }
+        return $ext !== '' ? $ext : 'bin';
     }
 }

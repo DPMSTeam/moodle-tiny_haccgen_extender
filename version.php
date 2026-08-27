@@ -17,7 +17,7 @@
 /**
  * Version metadata for tiny_haccgen_extender.
  *
- * Release 1.3.18 — Edit generated interactive elements in a dedicated modal.
+ * Release 1.3.24 — Wait for TinyMCE before mounting the audio preview.
  *
  * @package tiny_haccgen_extender
  * @copyright 2026, Dynamic Pixel
@@ -28,7 +28,7 @@
 defined('MOODLE_INTERNAL') || die();
 
 $plugin->component = 'tiny_haccgen_extender';
-$plugin->version   = 2026082501;
+$plugin->version   = 2026082700;
 $plugin->requires  = 2022112800;
 $plugin->maturity  = MATURITY_STABLE;
-$plugin->release   = '1.3.18';
+$plugin->release   = '1.4';

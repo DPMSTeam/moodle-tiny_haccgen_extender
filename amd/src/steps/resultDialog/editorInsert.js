@@ -119,38 +119,6 @@ const placeCaretAfter = (editor, node) => {
 };
 
 /**
- * Append HTML as the last child of the editor body.
- *
- * Used as a fallback when no selection anchor is available.
- *
- * @param {Object} editor TinyMCE editor instance.
- * @param {string} html HTML fragment to append.
- * @returns {void}
- */
-const insertAtEndOfBody = (editor, html) => {
-  const fragment = String(html || '');
-  if (!fragment) {
-    return;
-  }
-  const body = editor.getBody && editor.getBody();
-  if (!body || !editor.dom) {
-    return;
-  }
-
-  const apply = () => {
-    const wrap = editor.dom.create('div');
-    wrap.innerHTML = fragment;
-    const inserted = [];
-    while (wrap.firstChild) {
-      inserted.push(body.appendChild(wrap.firstChild));
-    }
-    placeCaretAfter(editor, inserted[inserted.length - 1]);
-  };
-
-  transactInsert(editor, apply);
-};
-
-/**
  * Insert HTML immediately below the block containing the current selection.
  *
  * Restores a bookmark saved via saveSelectionBookmark when the modal had focus.
@@ -229,85 +197,33 @@ export const replaceWithImageHtml = (editor, url) => {
   editor.selection.setContent(`<img class="dp-ai-inserted-image" src="${safe}" />`);
 };
 
-export const insertVideoHtml = (editor, url) => {
+const buildVideoTracksHtml = (tracks = []) => {
+  if (!Array.isArray(tracks) || !tracks.length) {
+    return '';
+  }
+  return tracks.map((track) => {
+    const safeUrl = escapeHtml(normalizeMediaUrl(track.url));
+    const kind = escapeHtml(String(track.kind || 'captions'));
+    const srclang = escapeHtml(String(track.srclang || 'en'));
+    const label = escapeHtml(String(track.label || 'Captions'));
+    const defaultAttr = track.default ? ' default' : '';
+    return `<track kind="${kind}" src="${safeUrl}" srclang="${srclang}" label="${label}"${defaultAttr}>`;
+  }).join('');
+};
+
+export const insertVideoHtml = (editor, url, tracks = []) => {
   const safe = escapeHtml(normalizeMediaUrl(url));
+  const tracksHtml = buildVideoTracksHtml(tracks);
   insertBelowSelection(
     editor,
-    `<p><video class="dp-ai-inserted-video" controls preload="metadata" src="${safe}"></video></p>`
+    `<p><video class="dp-ai-inserted-video" controls preload="metadata" src="${safe}">${tracksHtml}</video></p>`
   );
 };
 
-export const replaceWithVideoHtml = (editor, url) => {
+export const replaceWithVideoHtml = (editor, url, tracks = []) => {
   const safe = escapeHtml(normalizeMediaUrl(url));
+  const tracksHtml = buildVideoTracksHtml(tracks);
   editor.selection.setContent(
-    `<p><video class="dp-ai-inserted-video" controls preload="metadata" src="${safe}"></video></p>`
+    `<p><video class="dp-ai-inserted-video" controls preload="metadata" src="${safe}">${tracksHtml}</video></p>`
   );
-};
-
-/**
- * Insert generated interactive HTML below the current selection.
- *
- * @param {Object} editor TinyMCE editor instance.
- * @param {string} html Sanitized-enough HTML fragment.
- * @returns {void}
- */
-export const insertInteractiveHtml = (editor, html) => {
-  const fragment = String(html || '').trim();
-  if (!fragment) {
-    return;
-  }
-  insertBelowSelection(editor, fragment);
-};
-
-/**
- * Replace the current selection with generated interactive HTML.
- *
- * @param {Object} editor TinyMCE editor instance.
- * @param {string} html Sanitized-enough HTML fragment.
- * @returns {void}
- */
-export const replaceWithInteractiveHtml = (editor, html) => {
-  const fragment = String(html || '').trim();
-  if (!fragment) {
-    return;
-  }
-  editor.selection.setContent(fragment);
-};
-
-/**
- * Replace an existing interactive widget node in the editor body.
- *
- * @param {Object} editor TinyMCE editor instance.
- * @param {Element} node Existing .dp-ai-interactive element.
- * @param {string} html Replacement HTML fragment.
- * @returns {void}
- */
-export const replaceInteractiveNode = (editor, node, html) => {
-  const fragment = String(html || '').trim();
-  if (!fragment || !node || !node.parentNode || !editor.dom) {
-    return;
-  }
-  const apply = () => {
-    const wrap = editor.dom.create('div');
-    wrap.innerHTML = fragment;
-    const next = wrap.firstChild;
-    if (!next) {
-      return;
-    }
-    node.parentNode.replaceChild(next, node);
-    placeCaretAfter(editor, next);
-  };
-  transactInsert(editor, apply);
-};
-
-/**
- * @param {Object} editor TinyMCE editor instance.
- * @returns {Element|null}
- */
-export const getInteractiveWrapperFromSelection = (editor) => {
-  if (!editor?.selection || !editor.dom) {
-    return null;
-  }
-  const node = editor.selection.getNode();
-  return editor.dom.getParent(node, '.dp-ai-interactive');
 };

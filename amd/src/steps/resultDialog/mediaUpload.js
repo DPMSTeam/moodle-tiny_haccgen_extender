@@ -26,7 +26,7 @@ import { get_string as getString } from 'core/str';
 import { localizeMediaToDraft } from '../../repository';
 import { resolveDraftItemId } from '../../draftItemid';
 import { component } from '../../common';
-import { dataUrlToBlob, extFromMime } from './utils';
+import { dataUrlToBlob, extFromMime, pcmToWavBlob } from './utils';
 
 const DRAFT_UNAVAILABLE_FALLBACK = 'Draft file area is not available in this editor. You can still insert the media below.';
 const SERVER_COPY_MEDIA_LOCALLY_FAILED_FALLBACK = 'Server could not copy media locally.';
@@ -205,16 +205,29 @@ export const maybeUploadDataUrlToDraft = async (editor, dataUrl, defaultMime, ki
   let preferredItemId = resolveRequestedItemId(editor, opts);
 
   const uploadBlob = async (blob, mimeHint) => {
-    const mime = (blob && blob.type) ? blob.type : defaultMime || mimeHint || 'application/octet-stream';
+    let nextBlob = blob;
+    let mime = (blob && blob.type) ? blob.type : defaultMime || mimeHint || 'application/octet-stream';
+    if (kind === 'audio' && /l16|pcm|audio\/raw/i.test(String(mime))) {
+      const bytes = new Uint8Array(await blob.arrayBuffer());
+      const alreadyWav = bytes.length >= 4 && bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46;
+      if (!alreadyWav) {
+        const rateMatch = String(mime).match(/rate=(\d+)/i);
+        nextBlob = pcmToWavBlob(bytes, rateMatch ? Number(rateMatch[1]) : 24000);
+        mime = 'audio/wav';
+      }
+    }
     const filename = `${kind}.${extFromMime(mime)}`;
     // Route through the hardened wrapper so itemid is resolved consistently
     // across Tiny6 / legacy TinyMCE and step4 hidden itemid fields.
-    const playableUrl = await uploadBlobToDraft(editor, blob, filename);
+    const playableUrl = await uploadBlobToDraft(editor, nextBlob, filename);
     return String(playableUrl || '');
   };
   const tryLocalize = async (value) => {
     try {
-      const localized = await localizeMediaToDraft(value, preferredItemId, kind || 'media', defaultMime || '');
+      const mimeForServer = /l16|pcm|audio\/raw/i.test(String(defaultMime || ''))
+        ? (defaultMime || '')
+        : String(defaultMime || '').split(';')[0].trim();
+      const localized = await localizeMediaToDraft(value, preferredItemId, kind || 'media', mimeForServer);
       const code = Number(localized && localized.code);
       const localizedUrl = String((localized && localized.url) || '');
       if (code >= 200 && code < 300 && localizedUrl) {

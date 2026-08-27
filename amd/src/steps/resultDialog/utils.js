@@ -108,28 +108,93 @@ export const escapeHtml = (s) => {
   };
   export const parseDataUrl = (dataUrl) => {
     const v = String(dataUrl || '').trim();
-    const m = v.match(/^data:([^;]+);base64,([\s\S]+)$/);
-    if (!m) {return null;}
-    return { mime: m[1], b64: m[2] };
+    const m = v.match(/^data:([^,]*?)(;base64)?,([\s\S]+)$/i);
+    if (!m || !m[3]) {
+      return null;
+    }
+    const mime = String(m[1] || '').split(';')[0].trim() || 'application/octet-stream';
+    if (!m[2]) {
+      return null;
+    }
+    return { mime, b64: m[3].replace(/\s+/g, '') };
   };
   export const dataUrlToBlob = (dataUrl) => {
     const p = parseDataUrl(dataUrl);
     if (!p) {return null;}
-    const bin = atob(p.b64);
-    const bytes = new Uint8Array(bin.length);
-    for (let i = 0; i < bin.length; i++) {bytes[i] = bin.charCodeAt(i);}
-    return new Blob([bytes], { type: p.mime });
+    try {
+      const bin = atob(p.b64);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) {bytes[i] = bin.charCodeAt(i);}
+      return new Blob([bytes], { type: p.mime });
+    } catch (e) {
+      return null;
+    }
   };
   export const extFromMime = (mime) => {
     const m = String(mime || '').toLowerCase();
     if (m.includes('ogg')) {return 'ogg';}
-    if (m.includes('wav')) {return 'wav';}
-    if (m.includes('m4a') || m.includes('mp4')) {return 'm4a';}
+    if (m.includes('wav') || m.includes('l16') || m.includes('pcm') || m.includes('audio/raw')) {
+      return 'wav';
+    }
+    if (m.includes('webm')) {return 'webm';}
+    if (m.includes('m4a') || m.includes('mp4') || m.includes('aac')) {return 'm4a';}
     if (m.includes('mpeg') || m.includes('mp3')) {return 'mp3';}
+    if (m.startsWith('audio/')) {return 'wav';}
     if (m.includes('png')) {return 'png';}
     if (m.includes('jpeg') || m.includes('jpg')) {return 'jpg';}
     if (m.includes('webp')) {return 'webp';}
     return 'bin';
+  };
+  /**
+   * Pick a playable audio MIME for a draft URL (never L16/pcm/bin).
+   *
+   * @param {string} url
+   * @param {string} fallback
+   * @returns {string}
+   */
+  export const playableAudioMime = (url, fallback) => {
+    const path = String(url || '').split('?')[0].toLowerCase();
+    if (path.endsWith('.wav')) {return 'audio/wav';}
+    if (path.endsWith('.mp3')) {return 'audio/mpeg';}
+    if (path.endsWith('.ogg')) {return 'audio/ogg';}
+    if (path.endsWith('.m4a') || path.endsWith('.mp4')) {return 'audio/mp4';}
+    const base = String(fallback || '').split(';')[0].trim().toLowerCase();
+    if (!base || base.includes('l16') || base.includes('pcm') || base.includes('raw') || base.includes('octet-stream')) {
+      return 'audio/wav';
+    }
+    return String(fallback || 'audio/mpeg').split(';')[0].trim() || 'audio/mpeg';
+  };
+  /**
+   * Wrap 16-bit PCM as a WAV blob so the browser can play it.
+   *
+   * @param {Uint8Array} pcmBytes
+   * @param {number} sampleRate
+   * @returns {Blob}
+   */
+  export const pcmToWavBlob = (pcmBytes, sampleRate = 24000) => {
+    const dataLen = pcmBytes.length;
+    const buffer = new ArrayBuffer(44 + dataLen);
+    const view = new DataView(buffer);
+    const writeStr = (offset, text) => {
+      for (let i = 0; i < text.length; i++) {
+        view.setUint8(offset + i, text.charCodeAt(i));
+      }
+    };
+    writeStr(0, 'RIFF');
+    view.setUint32(4, 36 + dataLen, true);
+    writeStr(8, 'WAVE');
+    writeStr(12, 'fmt ');
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true);
+    view.setUint16(22, 1, true);
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, sampleRate * 2, true);
+    view.setUint16(32, 2, true);
+    view.setUint16(34, 16, true);
+    writeStr(36, 'data');
+    view.setUint32(40, dataLen, true);
+    new Uint8Array(buffer, 44).set(pcmBytes);
+    return new Blob([buffer], { type: 'audio/wav' });
   };
   /**
    * Converts plain text (with markdown-like patterns) to safe HTML for editor insertion.
@@ -205,44 +270,6 @@ export const textToHtml = (text) => {
   }
 
   return out.length ? out.join('') : '<p>' + inlineFormat(esc(s.replace(/\n/g, ' '))) + '</p>';
-};
-
-/**
- * Strip markdown fences and chatty wrappers from model HTML output.
- *
- * @param {string} text Raw model output.
- * @returns {string} HTML string.
- */
-export const stripHtmlFences = (text) => {
-  let s = String(text || '').trim();
-  if (!s) {
-    return '';
-  }
-  s = s.replace(/^```(?:html|HTML|xml)?\s*/i, '').replace(/\s*```$/i, '').trim();
-  const firstTag = s.search(/<[a-z][\s\S]*>/i);
-  if (firstTag > 0) {
-    s = s.slice(firstTag).trim();
-  }
-  return s;
-};
-
-/**
- * Ensure interactive HTML is wrapped for later CSS / re-edit.
- *
- * @param {string} html Raw HTML.
- * @param {string} elementType accordion|tabs|faq|steps|glossary|timeline|comparison|callouts|cards|checklist|quiz|spoiler
- * @returns {string}
- */
-export const wrapInteractiveHtml = (html, elementType) => {
-  const s = stripHtmlFences(html);
-  if (!s) {
-    return '';
-  }
-  const type = String(elementType || 'accordion').toLowerCase().replace(/[^a-z0-9_-]/g, '') || 'accordion';
-  if (/class\s*=\s*["'][^"']*dp-ai-interactive/i.test(s)) {
-    return s;
-  }
-  return `<div class="dp-ai-interactive dp-ai-interactive--${type}">${s}</div>`;
 };
 
 export const copyToClipboard = async (text) => {

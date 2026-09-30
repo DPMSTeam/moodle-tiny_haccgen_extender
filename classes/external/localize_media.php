@@ -22,11 +22,11 @@ global $CFG;
 require_once($CFG->libdir . '/externallib.php');
 require_once($CFG->libdir . '/filelib.php');
 
+use context_course;
 use context_system;
-use context_user;
 
 /**
- * Download remote media on the server and store into user's draft files.
+ * Download remote media on the server and store it in a lasting plugin file area.
  *
  * @package    tiny_haccgen_extender
  * @copyright 2026, Dynamic Pixel
@@ -57,7 +57,7 @@ final class localize_media extends \external_api {
         return new \external_single_structure([
             'code' => new \external_value(PARAM_INT, 'HTTP-like status code'),
             'itemid' => new \external_value(PARAM_INT, 'Effective draft itemid'),
-            'url' => new \external_value(PARAM_URL, 'Draft file URL or empty', VALUE_DEFAULT, ''),
+            'url' => new \external_value(PARAM_URL, 'Plugin file URL or empty', VALUE_DEFAULT, ''),
             'message' => new \external_value(PARAM_RAW, 'Error message or empty', VALUE_DEFAULT, ''),
         ]);
     }
@@ -84,6 +84,20 @@ final class localize_media extends \external_api {
         $ctx = context_system::instance();
         self::validate_context($ctx);
         require_capability('tiny/haccgen_extender:use', $ctx);
+
+        if ((string)$params['kind'] === 'debuglog') {
+            \tiny_haccgen_extender\local\debug_log::write('client ' . (string)$params['url']);
+            return [
+                'code' => 200,
+                'itemid' => (int)$params['itemid'],
+                'url' => '',
+                'message' => '',
+            ];
+        }
+        self::debug_log('localize start kind=' . $params['kind']
+            . ' mime=' . $params['mime']
+            . ' itemid=' . (int)$params['itemid']
+            . ' url=' . self::url_for_log((string)$params['url']));
 
         $effectiveitemid = (int)$params['itemid'];
         if ($effectiveitemid <= 0) {
@@ -143,6 +157,7 @@ final class localize_media extends \external_api {
                 $body = $curl->get($params['url']);
                 if ($curl->get_errno()) {
                     $err = method_exists($curl, 'get_error') ? (string)$curl->get_error() : 'Download failed.';
+                    self::debug_log('localize download failed kind=' . $params['kind'] . ' ' . $err);
                     return [
                         'code' => 502,
                         'itemid' => $effectiveitemid,
@@ -151,6 +166,7 @@ final class localize_media extends \external_api {
                     ];
                 }
                 if (!is_string($body) || $body === '') {
+                    self::debug_log('localize download empty kind=' . $params['kind']);
                     return ['code' => 502, 'itemid' => $effectiveitemid, 'url' => '', 'message' => 'Downloaded media is empty.'];
                 }
             }
@@ -159,6 +175,17 @@ final class localize_media extends \external_api {
             $converted = self::maybe_wrap_pcm_as_wav($body, $mimetype);
             $body = $converted['body'];
             $mimetype = $converted['mime'];
+            if ((string)$params['kind'] === 'captions') {
+                $beforemime = $mimetype;
+                $caption = self::maybe_convert_caption_to_vtt($body, $mimetype);
+                $body = $caption['body'];
+                $mimetype = $caption['mime'];
+                $prefix = substr(ltrim($body, "\xEF\xBB\xBF \t\r\n"), 0, 40);
+                self::debug_log('caption convert before=' . $beforemime
+                    . ' after=' . $mimetype
+                    . ' bytes=' . strlen($body)
+                    . ' prefix=' . str_replace(["\r", "\n"], ' ', $prefix));
+            }
 
             if (file_put_contents($tmp, $body) === false) {
                 return [
@@ -184,30 +211,79 @@ final class localize_media extends \external_api {
             $ext = self::extension_for_mime($mimetype, (string)$params['kind']);
             $base = clean_filename($params['kind']) ?: 'media';
             $filename = $base . '_' . time() . '_' . random_int(1000, 9999) . '.' . $ext;
+            $source = $ishttpurl ? (string)$params['url'] : 'data-url';
+            if (strlen($source) > 255) {
+                $source = substr($source, 0, 255);
+            }
 
-            $userctx = context_user::instance($USER->id);
             $fs = get_file_storage();
             $record = [
-                'contextid' => $userctx->id,
-                'component' => 'user',
-                'filearea' => 'draft',
-                'itemid' => $effectiveitemid,
                 'filepath' => '/',
                 'filename' => $filename,
+                'mimetype' => $mimetype,
                 'userid' => $USER->id,
-                'source' => $ishttpurl ? $params['url'] : 'data-url',
+                'source' => $source,
                 'author' => fullname($USER),
                 'license' => 'allrightsreserved',
             ];
-            $fs->create_file_from_pathname($record, $tmp);
-            $drafturl = \moodle_url::make_draftfile_url($effectiveitemid, '/', $filename, false)->out(false);
 
-            return ['code' => 200, 'itemid' => $effectiveitemid, 'url' => $drafturl, 'message' => ''];
+            $courseid = self::courseid_from_referer();
+            $permanent = null;
+            if ($courseid > 1) {
+                $permanent = self::store_course_file($fs, $courseid, $record, $tmp);
+            }
+            if ($permanent === null) {
+                // No course could be resolved. Keep the file in the plugin
+                // area so the editor and saved content survive draft cleanup.
+                $permanent = self::store_system_file($fs, $record, $tmp);
+            }
+            if ($permanent === null) {
+                self::debug_log('localize store failed kind=' . $params['kind'] . ' courseid=' . $courseid);
+                return [
+                    'code' => 500,
+                    'itemid' => $effectiveitemid,
+                    'url' => '',
+                    'message' => 'Could not store media in a lasting file area.',
+                ];
+            }
+            // Keep the editor draft itemid stable. Returning another id would
+            // overwrite the Tiny draft item field.
+            self::debug_log('localize stored kind=' . $params['kind']
+                . ' file=' . $filename
+                . ' mime=' . $mimetype
+                . ' courseid=' . $courseid
+                . ' url=' . self::url_for_log($permanent));
+            return ['code' => 200, 'itemid' => $effectiveitemid, 'url' => $permanent, 'message' => ''];
         } catch (\Throwable $e) {
+            self::debug_log('localize exception kind=' . $params['kind'] . ' ' . $e->getMessage());
             return ['code' => 500, 'itemid' => $effectiveitemid, 'url' => '', 'message' => $e->getMessage()];
         } finally {
             @unlink($tmp);
         }
+    }
+
+    /**
+     * Browsers only display a captions track when the file is WebVTT.
+     * Convert a SubRip payload before it is stored.
+     *
+     * @param string $body Downloaded caption bytes.
+     * @param string $mimetype Mime hint from the caller.
+     * @return array{body:string,mime:string}
+     */
+    private static function maybe_convert_caption_to_vtt(string $body, string $mimetype): array {
+        $mime = strtolower(trim(explode(';', $mimetype)[0]));
+        $issrt = (strpos($mime, 'subrip') !== false || strpos($mime, 'srt') !== false);
+        $trimmed = ltrim($body, "\xEF\xBB\xBF \t\r\n");
+        $alreadyvtt = (bool)preg_match('/^WEBVTT\b/i', $trimmed);
+        if ($alreadyvtt) {
+            return ['body' => $trimmed, 'mime' => 'text/vtt'];
+        }
+        if (!$issrt && !preg_match('/\d{2}:\d{2}:\d{2},\d{3}\s+-->\s+\d{2}:\d{2}:\d{2},\d{3}/', $body)) {
+            return ['body' => $body, 'mime' => $mimetype !== '' ? $mimetype : 'text/vtt'];
+        }
+        $normalized = str_replace(["\r\n", "\r"], "\n", $trimmed);
+        $normalized = preg_replace('/(\d{2}:\d{2}:\d{2}),(\d{3})/', '$1.$2', $normalized);
+        return ['body' => "WEBVTT\n\n" . ltrim($normalized), 'mime' => 'text/vtt'];
     }
 
     /**
@@ -252,7 +328,7 @@ final class localize_media extends \external_api {
      * Map a mime type to a file extension. Audio never falls back to .bin.
      *
      * @param string $mimetype Base mime without parameters.
-     * @param string $kind audio|image|video|media.
+     * @param string $kind audio|image|video|captions|media.
      * @return string
      */
     private static function extension_for_mime(string $mimetype, string $kind): string {
@@ -267,17 +343,20 @@ final class localize_media extends \external_api {
         if (strpos($m, 'mpeg') !== false || strpos($m, 'mp3') !== false) {
             return 'mp3';
         }
+        if ($kind === 'video' && strpos($m, 'mp4') !== false) {
+            return 'mp4';
+        }
         if (strpos($m, 'm4a') !== false || strpos($m, 'mp4') !== false || strpos($m, 'aac') !== false) {
             return 'm4a';
         }
         if (strpos($m, 'webm') !== false) {
             return 'webm';
         }
-        if (strpos($m, 'vtt') !== false || $kind === 'captions') {
-            return 'vtt';
-        }
         if (strpos($m, 'subrip') !== false || strpos($m, 'srt') !== false) {
             return 'srt';
+        }
+        if (strpos($m, 'vtt') !== false || $kind === 'captions') {
+            return 'vtt';
         }
         if (strpos($m, 'png') !== false) {
             return 'png';
@@ -302,5 +381,156 @@ final class localize_media extends \external_api {
             return 'mp4';
         }
         return $ext !== '' ? $ext : 'bin';
+    }
+
+    /**
+     * Course id from the editor page that called this webservice.
+     *
+     * @return int
+     */
+    private static function courseid_from_referer(): int {
+        $referer = (string)($_SERVER['HTTP_REFERER'] ?? '');
+        if ($referer === '') {
+            return 0;
+        }
+        $path = (string)(parse_url($referer, PHP_URL_PATH) ?? '');
+        $query = (string)(parse_url($referer, PHP_URL_QUERY) ?? '');
+        $params = [];
+        if ($query !== '') {
+            parse_str($query, $params);
+        }
+        foreach (['courseid', 'course'] as $key) {
+            $id = (int)($params[$key] ?? 0);
+            if ($id > 1) {
+                return $id;
+            }
+        }
+        $id = (int)($params['id'] ?? 0);
+        $ishaccgen = stripos($path, '/local/haccgen/') !== false;
+        $iscoursepage = (bool)preg_match('#/course/(view|edit)\.php$#', $path);
+        if ($id > 1 && ($ishaccgen || $iscoursepage)) {
+            return $id;
+        }
+        $cmid = (int)($params['update'] ?? 0);
+        if ($cmid <= 0 && $id > 0 && preg_match('#/mod/[^/]+/(view|edit)\.php$#', $path)) {
+            $cmid = $id;
+        }
+        if ($cmid > 0) {
+            global $CFG;
+            require_once($CFG->dirroot . '/lib/modinfolib.php');
+            $cm = get_coursemodule_from_id('', $cmid);
+            if ($cm && (int)$cm->course > 1) {
+                return (int)$cm->course;
+            }
+        }
+        return 0;
+    }
+
+    /**
+     * Store the file in the course so enrolled users can open the pluginfile URL.
+     *
+     * @param \file_storage $fs File storage.
+     * @param int $courseid Course id.
+     * @param array $record Partial file record.
+     * @param string $pathname Temporary file path.
+     * @return string|null Pluginfile URL, or null when the course cannot be used.
+     */
+    private static function store_course_file(\file_storage $fs, int $courseid, array $record, string $pathname): ?string {
+        try {
+            $course = get_course($courseid);
+            require_login($course, false);
+            $coursectx = context_course::instance($courseid);
+            $record['contextid'] = $coursectx->id;
+            $record['component'] = 'tiny_haccgen_extender';
+            $record['filearea'] = 'uploads';
+            $record['itemid'] = $courseid;
+            $fs->create_file_from_pathname($record, $pathname);
+            return \moodle_url::make_pluginfile_url(
+                $coursectx->id,
+                'tiny_haccgen_extender',
+                'uploads',
+                $courseid,
+                '/',
+                $record['filename'],
+                false
+            )->out(false);
+        } catch (\Throwable $e) {
+            debugging('tiny_haccgen_extender permanent media store failed: ' . $e->getMessage(), DEBUG_DEVELOPER);
+            return null;
+        }
+    }
+
+    /**
+     * Store the file in the system context when no course is available.
+     *
+     * This area is not deleted by file_temp_cleanup_task.
+     *
+     * @param \file_storage $fs File storage.
+     * @param array $record Partial file record.
+     * @param string $pathname Temporary file path.
+     * @return string|null Pluginfile URL, or null on failure.
+     */
+    private static function store_system_file(\file_storage $fs, array $record, string $pathname): ?string {
+        global $USER;
+
+        try {
+            $userid = (int)($USER->id ?? 0);
+            if ($userid <= 0) {
+                return null;
+            }
+            $sysctx = context_system::instance();
+            $filename = (string)$record['filename'];
+            $existing = $fs->get_file($sysctx->id, 'tiny_haccgen_extender', 'uploads', $userid, '/', $filename);
+            if ($existing) {
+                $existing->delete();
+            }
+            $record['contextid'] = $sysctx->id;
+            $record['component'] = 'tiny_haccgen_extender';
+            $record['filearea'] = 'uploads';
+            $record['itemid'] = $userid;
+            $fs->create_file_from_pathname($record, $pathname);
+            return \moodle_url::make_pluginfile_url(
+                $sysctx->id,
+                'tiny_haccgen_extender',
+                'uploads',
+                $userid,
+                '/',
+                $filename,
+                false
+            )->out(false);
+        } catch (\Throwable $e) {
+            debugging('tiny_haccgen_extender system media store failed: ' . $e->getMessage(), DEBUG_DEVELOPER);
+            return null;
+        }
+    }
+
+    /**
+     * Append a caption diagnostic without affecting the request.
+     *
+     * @param string $message Log line.
+     * @return void
+     */
+    private static function debug_log(string $message): void {
+        \tiny_haccgen_extender\local\debug_log::write($message);
+    }
+
+    /**
+     * Log a URL path without its query string.
+     *
+     * @param string $url URL or data URL.
+     * @return string
+     */
+    private static function url_for_log(string $url): string {
+        if (preg_match('#^data:#i', $url) === 1) {
+            return 'data-url len=' . strlen($url);
+        }
+        $parts = parse_url($url);
+        if (!is_array($parts)) {
+            return 'unparsed len=' . strlen($url);
+        }
+        $path = (string)($parts['path'] ?? '');
+        $query = (string)($parts['query'] ?? '');
+        return (string)($parts['scheme'] ?? '') . '://' . (string)($parts['host'] ?? '')
+            . $path . ($query !== '' ? '?querylen=' . strlen($query) : '');
     }
 }

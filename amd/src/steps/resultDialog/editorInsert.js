@@ -227,3 +227,71 @@ export const replaceWithVideoHtml = (editor, url, tracks = []) => {
     `<p><video class="dp-ai-inserted-video" controls preload="metadata" src="${safe}">${tracksHtml}</video></p>`
   );
 };
+
+/**
+ * Insert generated interactive HTML below the current selection.
+ *
+ * @param {Object} editor TinyMCE editor instance.
+ * @param {string} html Sanitized-enough HTML fragment.
+ * @returns {void}
+ */
+export const insertInteractiveHtml = (editor, html) => {
+  const fragment = String(html || '').trim();
+  if (!fragment) {
+    return;
+  }
+  insertBelowSelection(editor, fragment);
+};
+
+/**
+ * Replace the current selection with generated interactive HTML.
+ *
+ * @param {Object} editor TinyMCE editor instance.
+ * @param {string} html Sanitized-enough HTML fragment.
+ * @returns {void}
+ */
+export const replaceWithInteractiveHtml = (editor, html) => {
+  const fragment = String(html || '').trim();
+  if (!fragment) {
+    return;
+  }
+  editor.selection.setContent(fragment);
+};
+
+/**
+ * Replace an existing interactive widget node in the editor body.
+ *
+ * @param {Object} editor TinyMCE editor instance.
+ * @param {Element} node Existing .dp-ai-interactive element.
+ * @param {string} html Replacement HTML fragment.
+ * @returns {void}
+ */
+export const replaceInteractiveNode = (editor, node, html) => {
+  const fragment = String(html || '').trim();
+  if (!fragment || !node || !node.parentNode || !editor.dom) {
+    return;
+  }
+  const apply = () => {
+    const wrap = editor.dom.create('div');
+    wrap.innerHTML = fragment;
+    const next = wrap.firstChild;
+    if (!next) {
+      return;
+    }
+    node.parentNode.replaceChild(next, node);
+    placeCaretAfter(editor, next);
+  };
+  transactInsert(editor, apply);
+};
+
+/**
+ * @param {Object} editor TinyMCE editor instance.
+ * @returns {Element|null}
+ */
+export const getInteractiveWrapperFromSelection = (editor) => {
+  if (!editor?.selection || !editor.dom) {
+    return null;
+  }
+  const node = editor.selection.getNode();
+  return editor.dom.getParent(node, '.dp-ai-interactive');
+};

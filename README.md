@@ -1,9 +1,11 @@
 # HACC Gen extender
 
-Tiny editor plugin for Moodle. It adds AI tools inside the editor (summarise, translate, audio, image, video, and more) using the same Subscription Manager backend as HACC Gen.
+Tiny editor plugin for Moodle. It adds AI tools inside the editor (summarise, translate, interactive elements, audio, image, video, and more) using the same Subscription Manager backend as HACC Gen.
 
 **Component:** `tiny_haccgen_extender`  
-**Requires:** Moodle 4.1+ (Tiny editor)
+**Release:** 1.5  
+**Requires:** Moodle 4.1 or later (Tiny editor)  
+**Supported:** Moodle 4.1 through Moodle 5.3
 
 ## Install
 
@@ -47,10 +49,15 @@ Capability: `tiny/haccgen_extender:use`
 | Create audio | `create_audio` |
 | Image generation | `image_generation` |
 | Infographic image | `infograph_image_generation` |
+| Interactive elements | `interactive_html_generation` |
 | Avatar generation | `avatar_generation` |
 | Video generation | `video_generation` |
 | Image description | `image_description` |
 | Text recognition | `text_recognition` |
+
+### Interactive elements
+
+Turn lesson text into a CSS-only layout: accordion, tabs, FAQ, steps, glossary, timeline, comparison, callouts, cards, checklist, or spoiler. Preview the result, edit section titles and content, then insert it into the editor. Double-click an inserted element, or use the editor toolbar on it, to edit it again.
 
 ### Video generation
 

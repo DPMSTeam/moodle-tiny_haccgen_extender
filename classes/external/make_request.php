@@ -474,6 +474,7 @@ class make_request extends \external_api {
             $hasjob = !empty($decoded['job_id']);
             $hasstatus = !empty($decoded['status']);
             if ((is_array($media) && count($media) > 0) || $hasjob || $hasstatus) {
+                self::log_media_shape($decoded, (string)$params['purpose']);
                 $result = json_encode($decoded, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
             } else {
                 $result = is_string($out) ? $out : (string) $raw;
@@ -489,5 +490,75 @@ class make_request extends \external_api {
         }
 
         return ['code' => 200, 'result' => (string) $raw];
+    }
+
+    /**
+     * Record the media and caption shape returned by the upstream service.
+     *
+     * @param array $decoded Decoded upstream payload.
+     * @param string $purpose Request purpose.
+     * @return void
+     */
+    private static function log_media_shape(array $decoded, string $purpose): void {
+        $media = $decoded['media'] ?? null;
+        $parts = [
+            'make_request purpose=' . $purpose,
+            'keys=' . implode(',', array_keys($decoded)),
+            'status=' . (string)($decoded['status'] ?? ''),
+            'job=' . (!empty($decoded['job_id']) ? 'yes' : 'no'),
+        ];
+        if (!is_array($media)) {
+            $parts[] = 'media=none';
+        } else {
+            $parts[] = 'media_count=' . count($media);
+            foreach ($media as $index => $item) {
+                if (!is_array($item)) {
+                    $parts[] = 'media' . $index . '=scalar';
+                    continue;
+                }
+                $url = (string)($item['url'] ?? '');
+                $tracks = $item['tracks'] ?? null;
+                $parts[] = 'media' . $index
+                    . ' type=' . (string)($item['type'] ?? $item['kind'] ?? '')
+                    . ' mime=' . (string)($item['mime'] ?? $item['mimetype'] ?? '')
+                    . ' url=' . self::url_for_log($url)
+                    . ' tracks=' . (is_array($tracks) ? count($tracks) : 0);
+                if (!is_array($tracks)) {
+                    continue;
+                }
+                foreach ($tracks as $trackindex => $track) {
+                    if (!is_array($track)) {
+                        $parts[] = 'track' . $index . '.' . $trackindex . '=scalar';
+                        continue;
+                    }
+                    $parts[] = 'track' . $index . '.' . $trackindex
+                        . ' kind=' . (string)($track['kind'] ?? $track['type'] ?? '')
+                        . ' mime=' . (string)($track['mime'] ?? $track['mimetype'] ?? '')
+                        . ' srclang=' . (string)($track['srclang'] ?? $track['lang'] ?? '')
+                        . ' url=' . self::url_for_log((string)($track['url'] ?? $track['src'] ?? ''));
+                }
+            }
+        }
+        \tiny_haccgen_extender\local\debug_log::write(implode(' | ', $parts));
+    }
+
+    /**
+     * Log a URL path without its query string.
+     *
+     * @param string $url URL.
+     * @return string
+     */
+    private static function url_for_log(string $url): string {
+        if ($url === '') {
+            return 'empty';
+        }
+        $parts = parse_url($url);
+        if (!is_array($parts)) {
+            return 'unparsed len=' . strlen($url);
+        }
+        $path = (string)($parts['path'] ?? '');
+        $query = (string)($parts['query'] ?? '');
+        return (string)($parts['scheme'] ?? '') . '://' . (string)($parts['host'] ?? '')
+            . $path . ($query !== '' ? '?querylen=' . strlen($query) : '');
     }
 }

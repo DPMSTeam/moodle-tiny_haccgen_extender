@@ -27,131 +27,272 @@ const tryParseJson = (v) => {
   try { return JSON.parse(v); } catch { return null; }
 };
 
-const isAudioString = (s) => {
-  const v = String(s || '').trim();
-  if (!v) {return false;}
-  if (v.startsWith('data:audio/')) {return true;}
-  if (/^https?:\/\//i.test(v)) {return true;}
-  return looksLikeBase64(v);
+const MEDIA_EXTENSIONS = {
+  audio: ['aac', 'flac', 'm4a', 'mp3', 'oga', 'ogg', 'opus', 'wav'],
+  image: ['avif', 'gif', 'jpeg', 'jpg', 'png', 'svg', 'webp'],
+  video: ['avi', 'm4v', 'mkv', 'mov', 'mp4', 'mpeg', 'mpg', 'ogv', 'webm'],
 };
 
-const isImageString = (s) => {
-  const v = String(s || '').trim();
-  if (!v) {return false;}
-  if (v.startsWith('data:image/')) {return true;}
-  if (/^https?:\/\//i.test(v)) {return true;}
-  return looksLikeBase64(v);
+const SEMANTIC_KEYS = {
+  audio: [
+    'audio',
+    'audioUrl',
+    'audioURL',
+    'audio_url',
+    'audioData',
+    'audio_data',
+    'audioBase64',
+    'audio_base64',
+    'generated_audio',
+  ],
+  image: [
+    'image',
+    'imageUrl',
+    'imageURL',
+    'image_url',
+    'imageData',
+    'image_data',
+    'imageBase64',
+    'image_base64',
+    'generated_image',
+  ],
+  video: [
+    'video',
+    'videoUrl',
+    'videoURL',
+    'video_url',
+    'videoData',
+    'video_data',
+    'videoBase64',
+    'video_base64',
+    'generated_video',
+    'rendered_video',
+  ],
 };
 
-const isVideoString = (s) => {
-  const v = String(s || '').trim();
-  if (!v) {return false;}
-  if (v.startsWith('data:video/')) {return true;}
-  if (/^https?:\/\//i.test(v)) {return true;}
-  return looksLikeBase64(v);
+const GENERIC_URL_KEYS = [
+  'url',
+  'src',
+  'href',
+  'fileurl',
+  'fileUrl',
+  'drafturl',
+  'draftUrl',
+  'playableUrl',
+  'outputText',
+];
+
+const WRAPPER_KEYS = ['result', 'data', 'payload', 'response', 'content', 'output'];
+
+const normalizeDeclaredType = (value) => {
+  const type = String(value || '').trim().toLowerCase();
+  for (const kind of ['audio', 'video', 'image']) {
+    if (type === kind || type.includes(kind)) {
+      return kind;
+    }
+  }
+  return '';
 };
 
-const deepFindMedia = (node, kind, depth = 0) => {
-  if (!node || depth > 8) {return { url: '', mime: '' };}
-
-  if (typeof node === 'string') {
-    const ok = kind === 'audio'
-      ? isAudioString(node)
-      : (kind === 'video' ? isVideoString(node) : isImageString(node));
-    if (ok) {return { url: node, mime: '' };}
-    const parsed = tryParseJson(node);
-    if (parsed) {return deepFindMedia(parsed, kind, depth + 1);}
-    return { url: '', mime: '' };
+const kindFromMime = (mime) => {
+  const normalized = String(mime || '').trim().toLowerCase();
+  if (normalized.startsWith('audio/')) {
+    return 'audio';
   }
-
-  if (typeof node !== 'object') {return { url: '', mime: '' };}
-
-  if (typeof node.url === 'string') {
-    const ok = kind === 'audio'
-      ? isAudioString(node.url)
-      : (kind === 'video' ? isVideoString(node.url) : isImageString(node.url));
-    if (ok) {return { url: node.url, mime: String(node.mime || node.mimetype || '') };}
+  if (normalized.startsWith('video/')) {
+    return 'video';
   }
+  if (normalized.startsWith('image/')) {
+    return 'image';
+  }
+  return '';
+};
 
-  const directKeys = kind === 'audio'
-    ? ['audio', 'audioUrl', 'audioURL', 'audio_url', 'fileurl', 'fileUrl', 'drafturl',
-      'draftUrl', 'playableUrl', 'outputText']
-    : (kind === 'video'
-      ? ['video', 'videoUrl', 'videoURL', 'video_url', 'generated_video', 'video_data',
-         'videoData', 'data', 'src', 'video_base64', 'videoBase64', 'base64', 'fileurl',
-         'fileUrl', 'drafturl', 'draftUrl', 'playableUrl', 'outputText']
-      : ['image', 'imageUrl', 'imageURL', 'image_url', 'generated_image', 'image_data',
-         'imageData', 'data', 'src', 'image_base64', 'imageBase64', 'base64', 'fileurl',
-         'fileUrl', 'drafturl', 'draftUrl', 'playableUrl', 'outputText']);
+const extensionFromUrl = (value) => {
+  const clean = String(value || '').trim().split(/[?#]/, 1)[0];
+  const match = clean.match(/\.([a-z0-9]+)$/i);
+  return match ? match[1].toLowerCase() : '';
+};
 
-  for (const k of directKeys) {
-    if (typeof node[k] === 'string') {
-      const ok = kind === 'audio'
-        ? isAudioString(node[k])
-        : (kind === 'video' ? isVideoString(node[k]) : isImageString(node[k]));
-      if (ok) {return { url: node[k], mime: String(node.mime || node.mimetype || '') };}
+const kindFromValue = (value, mime = '') => {
+  const mimeKind = kindFromMime(mime);
+  if (mimeKind) {
+    return mimeKind;
+  }
+  const dataMatch = String(value || '').trim().match(/^data:([^;,]+)/i);
+  const dataKind = dataMatch ? kindFromMime(dataMatch[1]) : '';
+  if (dataKind) {
+    return dataKind;
+  }
+  const extension = extensionFromUrl(value);
+  return Object.keys(MEDIA_EXTENSIONS).find((kind) => MEDIA_EXTENSIONS[kind].includes(extension)) || '';
+};
+
+const inferredMime = (value, kind) => {
+  const dataMatch = String(value || '').trim().match(/^data:([^;,]+)/i);
+  if (dataMatch) {
+    return dataMatch[1];
+  }
+  const extension = extensionFromUrl(value);
+  const map = {
+    aac: 'audio/aac',
+    m4a: 'audio/mp4',
+    mp3: 'audio/mpeg',
+    oga: 'audio/ogg',
+    ogg: kind === 'video' ? 'video/ogg' : 'audio/ogg',
+    opus: 'audio/ogg',
+    wav: 'audio/wav',
+    m4v: 'video/mp4',
+    mov: 'video/quicktime',
+    mp4: 'video/mp4',
+    ogv: 'video/ogg',
+    webm: kind === 'audio' ? 'audio/webm' : 'video/webm',
+    gif: 'image/gif',
+    jpeg: 'image/jpeg',
+    jpg: 'image/jpeg',
+    png: 'image/png',
+    svg: 'image/svg+xml',
+    webp: 'image/webp',
+  };
+  return map[extension] || '';
+};
+
+const mediaCandidate = (value, node, kind, semantic, score) => {
+  const url = String(value || '').trim();
+  if (!url) {
+    return null;
+  }
+  const mime = String(node?.mime || node?.mimetype || node?.mimeType || '').trim();
+  const declared = normalizeDeclaredType(node?.type || node?.kind || node?.mediaType);
+  const detected = kindFromValue(url, mime);
+  if ((declared && declared !== kind) || (detected && detected !== kind)) {
+    return null;
+  }
+  const isTransport = /^https?:\/\//i.test(url) || /^data:/i.test(url) || looksLikeBase64(url);
+  const hasTypeEvidence = semantic || declared === kind || detected === kind;
+  if (!isTransport || !hasTypeEvidence) {
+    return null;
+  }
+  return {
+    url,
+    mime: mime || inferredMime(url, kind),
+    score: score + (declared === kind ? 20 : 0) + (detected === kind ? 10 : 0),
+  };
+};
+
+const deepFindMedia = (root, kind) => {
+  const candidates = [];
+  const visited = new WeakSet();
+
+  const addCandidate = (value, node, semantic, score) => {
+    const candidate = mediaCandidate(value, node, kind, semantic, score);
+    if (candidate) {
+      candidates.push(candidate);
     }
-  }
+  };
 
-  const media = Array.isArray(node.media) ? node.media : [];
-  for (const m of media) {
-    const t = String(m?.type || m?.kind || '').toLowerCase();
-    const u = m?.url || m?.src || m?.href;
-    if (!u || typeof u !== 'string') {continue;}
-    if (kind === 'audio' && (t === 'audio' || t.includes('audio')) && isAudioString(u)) {
-      return { url: u, mime: String(m?.mime || m?.mimetype || '') };
+  const visit = (node, depth = 0, semantic = false, score = 0) => {
+    if (node === null || node === undefined || depth > 10) {
+      return;
     }
-    if (kind === 'video' && (t === 'video' || t.includes('video')) && isVideoString(u)) {
-      return { url: u, mime: String(m?.mime || m?.mimetype || '') };
+    if (typeof node === 'string') {
+      const parsed = tryParseJson(node);
+      if (parsed !== null && parsed !== node) {
+        visit(parsed, depth + 1, semantic, score);
+      } else {
+        addCandidate(node, {}, semantic, score);
+      }
+      return;
     }
-    if (kind === 'image' && (t === 'image' || t.includes('image')) && isImageString(u)) {
-      return { url: u, mime: String(m?.mime || m?.mimetype || '') };
+    if (typeof node !== 'object') {
+      return;
     }
-  }
+    if (visited.has(node)) {
+      return;
+    }
+    visited.add(node);
+    if (Array.isArray(node)) {
+      node.forEach((item) => visit(item, depth + 1, semantic, score));
+      return;
+    }
 
-  const childKeys = ['result', 'data', 'payload', 'response', 'content', 'output'];
-  for (const k of childKeys) {
-    if (node[k] !== undefined) {
-      const found = deepFindMedia(node[k], kind, depth + 1);
-      if (found.url) {return found;}
-    }
-  }
+    const declared = normalizeDeclaredType(node.type || node.kind || node.mediaType);
+    const nodeIsSemantic = semantic || declared === kind;
+    GENERIC_URL_KEYS.forEach((key) => {
+      if (typeof node[key] === 'string') {
+        const parsed = tryParseJson(node[key]);
+        if (parsed !== null && parsed !== node[key]) {
+          visit(parsed, depth + 1, false, score + 10);
+        } else {
+          addCandidate(node[key], node, nodeIsSemantic, score + (declared === kind ? 100 : 30));
+        }
+      }
+    });
 
-  for (const v of Object.values(node)) {
-    const found = deepFindMedia(v, kind, depth + 1);
-    if (found.url) {return found;}
-  }
+    SEMANTIC_KEYS[kind].forEach((key) => {
+      if (node[key] === undefined) {
+        return;
+      }
+      if (typeof node[key] === 'string') {
+        const parsed = tryParseJson(node[key]);
+        if (parsed !== null && parsed !== node[key]) {
+          visit(parsed, depth + 1, true, score + 80);
+        } else {
+          addCandidate(node[key], node, true, score + 80);
+        }
+      } else {
+        visit(node[key], depth + 1, true, score + 80);
+      }
+    });
 
-  return { url: '', mime: '' };
+    const handled = new Set([...GENERIC_URL_KEYS, ...SEMANTIC_KEYS[kind]]);
+    WRAPPER_KEYS.forEach((key) => {
+      if (node[key] !== undefined && !handled.has(key)) {
+        handled.add(key);
+        visit(node[key], depth + 1, false, score + 10);
+      }
+    });
+    Object.entries(node).forEach(([key, value]) => {
+      if (!handled.has(key) && key !== 'tracks') {
+        visit(value, depth + 1, false, score);
+      }
+    });
+  };
+
+  visit(root);
+  candidates.sort((a, b) => b.score - a.score);
+  const best = candidates[0];
+  return best ? { url: best.url, mime: best.mime } : { url: '', mime: '' };
 };
 
 export const getAudioFromResult = (result) => deepFindMedia(result, 'audio');
 export const getImageFromResult = (result) => deepFindMedia(result, 'image');
 export const getVideoFromResult = (result) => deepFindMedia(result, 'video');
 
-const normalizeTrackNode = (node) => {
-  if (!node || typeof node !== 'object') {
+const normalizeTrackNode = (node, semantic = false) => {
+  const value = typeof node === 'string' ? {url: node} : node;
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
     return null;
   }
-  const url = String(node.url || node.src || node.href || '').trim();
-  if (!url || !/^https?:\/\//i.test(url)) {
+  const url = String(value.url || value.src || value.href || '').trim();
+  const type = String(value.type || value.kind || '').toLowerCase();
+  const mime = String(value.mime || value.mimetype || value.mimeType || '').trim();
+  const extension = extensionFromUrl(url);
+  const isTrackType = /caption|subtitle|track/.test(type);
+  const isTrackMime = /vtt|subrip|\bsrt\b/i.test(mime);
+  const isTrackExtension = extension === 'vtt' || extension === 'srt';
+  const isUrl = /^https?:\/\//i.test(url) || /^data:text\//i.test(url);
+  if (!url || !isUrl || (!semantic && !isTrackType && !isTrackMime && !isTrackExtension)) {
     return null;
   }
   return {
-    kind: String(node.kind || 'captions'),
+    kind: /subtitle/.test(type) ? 'subtitles' : 'captions',
     url,
-    mime: String(node.mime || node.mimetype || 'text/vtt'),
-    srclang: String(node.srclang || node.lang || 'en'),
-    label: String(node.label || 'Captions'),
-    default: Boolean(node.default),
+    mime: mime || (extension === 'srt' ? 'application/x-subrip' : 'text/vtt'),
+    srclang: String(value.srclang || value.lang || 'en'),
+    label: String(value.label || 'Captions'),
+    default: Boolean(value.default),
   };
-};
-
-const parseResultRoot = (result) => {
-  if (typeof result === 'string') {
-    return tryParseJson(result) || { outputText: result };
-  }
-  return result && typeof result === 'object' ? result : {};
 };
 
 /**
@@ -161,28 +302,62 @@ const parseResultRoot = (result) => {
  * @returns {Array<{kind:string,url:string,mime:string,srclang:string,label:string,default:boolean}>}
  */
 export const getVideoTracksFromResult = (result) => {
-  const root = parseResultRoot(result);
   const tracks = [];
+  const visited = new WeakSet();
+  const trackKeys = ['tracks', 'captionTracks', 'caption_tracks', 'subtitles', 'subtitleTracks'];
 
-  const media = Array.isArray(root.media) ? root.media : [];
-  for (const item of media) {
-    const type = String(item?.type || '').toLowerCase();
-    if (type === 'video' && Array.isArray(item.tracks)) {
-      item.tracks.forEach((track) => {
-        const normalized = normalizeTrackNode(track);
-        if (normalized) {
-          tracks.push(normalized);
-        }
-      });
-      continue;
+  const addTrack = (node, semantic = false) => {
+    const normalized = normalizeTrackNode(node, semantic);
+    if (normalized && !tracks.some((track) => track.url === normalized.url)) {
+      tracks.push(normalized);
     }
-    if (['captions', 'caption', 'subtitle', 'subtitles', 'track'].includes(type)) {
-      const normalized = normalizeTrackNode(item);
-      if (normalized) {
-        tracks.push(normalized);
+  };
+
+  const visit = (node, depth = 0, semantic = false) => {
+    if (node === null || node === undefined || depth > 10) {
+      return;
+    }
+    if (typeof node === 'string') {
+      const parsed = tryParseJson(node);
+      if (parsed !== null && parsed !== node) {
+        visit(parsed, depth + 1, semantic);
       }
+      return;
     }
-  }
+    if (typeof node !== 'object') {
+      return;
+    }
+    if (visited.has(node)) {
+      return;
+    }
+    visited.add(node);
+    if (Array.isArray(node)) {
+      node.forEach((item) => visit(item, depth + 1, semantic));
+      return;
+    }
 
+    const type = String(node.type || node.kind || '').toLowerCase();
+    if (semantic || /caption|subtitle|track/.test(type)) {
+      addTrack(node, semantic);
+    }
+    const handled = new Set();
+    trackKeys.forEach((key) => {
+      if (node[key] !== undefined) {
+        handled.add(key);
+        const values = Array.isArray(node[key]) ? node[key] : [node[key]];
+        values.forEach((item) => {
+          addTrack(item, true);
+          visit(item, depth + 1, true);
+        });
+      }
+    });
+    Object.entries(node).forEach(([key, value]) => {
+      if (!handled.has(key)) {
+        visit(value, depth + 1, false);
+      }
+    });
+  };
+
+  visit(result);
   return tracks;
 };

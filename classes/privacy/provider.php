@@ -43,6 +43,7 @@ class provider implements metadata_provider {
             ],
             'privacy:metadata:external'
         );
+        $items->add_subsystem_link('core_files', [], 'privacy:metadata:core_files');
 
         return $items;
     }

@@ -17,7 +17,8 @@
 /**
  * Version metadata for tiny_haccgen_extender.
  *
- * Release 1.4 — Native video generation in the Tiny editor.
+ * Release 1.5 — Interactive elements in the Tiny editor.
+ * Supports Moodle 4.1 through Moodle 5.3.
  *
  * @package tiny_haccgen_extender
  * @copyright 2026, Dynamic Pixel
@@ -28,7 +29,8 @@
 defined('MOODLE_INTERNAL') || die();
 
 $plugin->component = 'tiny_haccgen_extender';
-$plugin->version   = 2026082702;
-$plugin->requires  = 2022112800;
+$plugin->version   = 2026093000;
+$plugin->requires  = 2022112800; // Moodle 4.1.
+$plugin->supported = [401, 503]; // Moodle 4.1 through Moodle 5.3.
 $plugin->maturity  = MATURITY_STABLE;
-$plugin->release   = '1.4';
+$plugin->release   = '1.5';
